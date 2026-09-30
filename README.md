@@ -13,6 +13,9 @@ ThunderNotes deliberately stays small. It is not a knowledge base, not a wiki an
 not a Notion clone. It is the fastest possible way to jot something down and find
 it again later, without leaving Thunderbird.
 
+> **Download:** [Download latest XPI](https://github.com/nickkho0201/ThunderNotes/releases/latest)\
+> Install via **Thunderbird → Tools → Add-ons and Themes → gear icon → Install Add-on From File…**
+
 ---
 
 ## Current features
@@ -213,7 +216,8 @@ ThunderNotes/
 ThunderNotes installs as an ordinary Thunderbird extension. There is nothing else
 to install.
 
-**From a packaged XPI** (e.g. `artifacts/thundernotes-0.1.4.xpi`):
+**From a packaged XPI:** download the
+[latest packaged XPI](https://github.com/nickkho0201/ThunderNotes/releases/latest).
 
 1. Open Thunderbird.
 2. **Tools → Add-ons and Themes** (`Ctrl+Shift+A`).
