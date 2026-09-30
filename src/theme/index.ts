@@ -1,10 +1,10 @@
 /**
  * Light/dark theme handling for the space page.
  *
- * The detection rules themselves live in `./detect.ts`, because the background
- * service worker needs the *same* answer to pick the Space toolbar icon. This
- * module is the page-side wrapper: it applies the result to the document and
- * notifies listeners when the mode changes.
+ * The detection rules themselves live in `./detect.ts`. This module is the
+ * page-side wrapper: it applies the result to the document and notifies listeners
+ * when the mode changes, including the DOM-only media-query fallback that the
+ * background service worker cannot evaluate.
  *
  * Changes arrive from three independent sources: `theme.onUpdated`, the
  * `prefers-color-scheme` media query (covers "System theme — auto" following the

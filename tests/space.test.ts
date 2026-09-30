@@ -2,10 +2,9 @@
  * Space button registration.
  *
  * The toolbar icon is the one part of the extension that cannot be unit-tested in
- * a browser, so these tests pin the *contract* instead. They would have caught
- * every icon bug this project has had: a fixed-colour icon that could never adapt,
- * a `themeIcons` entry with the dark and light values swapped, a size set that
- * does not exist on disk, and artwork that only differs in name.
+ * a browser, so these tests pin the application-level contract instead: glyph
+ * mapping, page-to-worker synchronization, worker restart fallback, update order,
+ * file presence, and artwork that genuinely differs in colour.
  *
  * The API being targeted (Thunderbird 156, `spaces` MV3 docs):
  *
@@ -23,8 +22,21 @@ import assert from "node:assert/strict";
 import { existsSync, readFileSync } from "node:fs";
 import { dirname, join } from "node:path";
 
-import { SPACE_ICONS, SPACE_NAME, SPACE_PAGE, buildButtonProperties } from "../src/background/space.ts";
+import {
+  SPACE_ICONS,
+  SPACE_NAME,
+  SPACE_PAGE,
+  buildButtonProperties,
+  iconsForMode,
+} from "../src/background/space.ts";
+import { SpaceThemeSync } from "../src/background/theme-sync.ts";
 import type { ThunderbirdBrowser } from "../src/api/browser.ts";
+import {
+  createThemeChangedMessage,
+  synchronizeResolvedTheme,
+  themeModeFromMessage,
+} from "../src/theme/message.ts";
+import type { ThemeMode, ThemeState } from "../src/theme/detect.ts";
 import {
   findNonLiteralPaint,
   firstStrokeWidth,
@@ -168,19 +180,16 @@ describe("space: button properties", () => {
     }
   });
 
-  it("falls back the same way the page does for an auto/system theme", async () => {
-    // `color_scheme: "auto"` gives no decision, so the shared detection layer
-    // falls through to luminance and then to the default. With no usable colours
-    // and no window, the result is the light-theme icon — the same answer the
-    // space page reaches, because both call the same function.
+  it("has a deterministic worker fallback for an unresolved auto/system theme", async () => {
+    // `color_scheme: "auto"` gives no decision, so a DOM-less direct caller falls
+    // through to Light. The coordinator normally replaces this with the page's
+    // resolved or previously stored mode.
     withTheme("auto");
     const icons = (await buildButtonProperties()).defaultIcons as Record<string, string>;
     assert.equal(icons["16"], "assets/icons/notes-glyph-dark-16.svg");
   });
 
-  it("uses the exact same decision the space page uses", async () => {
-    // The icon and the page's own Light/Dark styling must not be able to
-    // disagree: both call `detectTheme()` from the shared detection layer.
+  it("uses the shared detector when the theme API gives a decisive mode", async () => {
     const { detectTheme } = await import("../src/theme/detect.ts");
     for (const scheme of ["light", "dark"] as const) {
       withTheme(scheme);
@@ -203,6 +212,142 @@ describe("space: button properties", () => {
         "assets/icons/notes-glyph-light-32.svg",
       ]
     );
+  });
+});
+
+describe("space: resolved theme synchronization", () => {
+  function icon16(mode: ThemeMode): string {
+    return iconsForMode(mode)["16"]!;
+  }
+
+  it("carries the page-resolved mode in the runtime message", () => {
+    const message = createThemeChangedMessage("dark");
+    assert.deepEqual(message, { type: "thundernotes:theme-changed", mode: "dark" });
+    assert.equal(themeModeFromMessage(message), "dark");
+    assert.equal(themeModeFromMessage({ type: message.type }), null);
+    assert.equal(themeModeFromMessage({ type: message.type, mode: "system" }), null);
+  });
+
+  it("sends the page's initial mode and every later resolved change", () => {
+    let listener: ((state: ThemeState) => void) | null = null;
+    const messages: unknown[] = [];
+    const unsubscribe = synchronizeResolvedTheme(
+      {
+        state: { mode: "dark", source: "media" },
+        onModeChange(next) {
+          listener = next;
+          return () => {
+            listener = null;
+          };
+        },
+      },
+      (message) => messages.push(message)
+    );
+
+    assert.deepEqual(messages, [createThemeChangedMessage("dark")]);
+    assert.ok(listener);
+    (listener as (state: ThemeState) => void)({ mode: "light", source: "media" });
+    assert.deepEqual(messages, [createThemeChangedMessage("dark"), createThemeChangedMessage("light")]);
+    unsubscribe();
+    assert.equal(listener, null);
+  });
+
+  it("uses the page's dark mode when the DOM-less worker defaults to light", async () => {
+    let stored: ThemeMode | null = null;
+    const operations: Array<{ kind: "register" | "apply"; mode: ThemeMode; icon: string }> = [];
+    const dependencies = {
+      detect: async (): Promise<ThemeState> => ({ mode: "light", source: "default" }),
+      load: async () => stored,
+      save: async (mode: ThemeMode) => {
+        stored = mode;
+      },
+      register: async (mode: ThemeMode) => {
+        operations.push({ kind: "register", mode, icon: icon16(mode) });
+      },
+      apply: async (mode: ThemeMode) => {
+        operations.push({ kind: "apply", mode, icon: icon16(mode) });
+      },
+    };
+
+    const firstWorker = new SpaceThemeSync(dependencies);
+    await firstWorker.boot();
+    await firstWorker.pageResolved(themeModeFromMessage(createThemeChangedMessage("dark"))!);
+
+    assert.deepEqual(operations, [
+      { kind: "register", mode: "light", icon: SPACE_ICONS.dark16 },
+      { kind: "apply", mode: "dark", icon: SPACE_ICONS.light16 },
+    ]);
+    assert.equal(stored, "dark");
+
+    operations.length = 0;
+    const restartedWorker = new SpaceThemeSync(dependencies);
+    await restartedWorker.boot();
+    assert.deepEqual(operations, [
+      { kind: "register", mode: "dark", icon: SPACE_ICONS.light16 },
+    ]);
+  });
+
+  it("does not let an in-flight worker fallback overwrite a newer page mode", async () => {
+    let finishDetection!: (state: ThemeState) => void;
+    const detection = new Promise<ThemeState>((resolve) => {
+      finishDetection = resolve;
+    });
+    const operations: Array<{ kind: "register" | "apply"; mode: ThemeMode }> = [];
+    const sync = new SpaceThemeSync({
+      detect: () => detection,
+      load: async () => null,
+      save: async () => {},
+      register: async (mode) => {
+        operations.push({ kind: "register", mode });
+      },
+      apply: async (mode) => {
+        operations.push({ kind: "apply", mode });
+      },
+    });
+
+    const boot = sync.boot();
+    const pageUpdate = sync.pageResolved("dark");
+    finishDetection({ mode: "light", source: "default" });
+    await Promise.all([boot, pageUpdate]);
+
+    assert.deepEqual(operations, [
+      { kind: "register", mode: "dark" },
+      { kind: "apply", mode: "dark" },
+    ]);
+  });
+
+  it("keeps the page-resolved mode for an ambiguous auto-theme event", async () => {
+    const applied: ThemeMode[] = [];
+    const sync = new SpaceThemeSync({
+      detect: async (): Promise<ThemeState> => ({ mode: "light", source: "default" }),
+      load: async () => null,
+      save: async () => {},
+      register: async () => {},
+      apply: async (mode) => {
+        applied.push(mode);
+      },
+    });
+
+    await sync.pageResolved("dark");
+    await sync.themeUpdated({ properties: { color_scheme: "auto" } });
+    assert.deepEqual(applied, ["dark", "dark"]);
+  });
+
+  it("lets a decisive Thunderbird theme event replace an older page mode", async () => {
+    const applied: ThemeMode[] = [];
+    const sync = new SpaceThemeSync({
+      detect: async (): Promise<ThemeState> => ({ mode: "dark", source: "color_scheme" }),
+      load: async () => null,
+      save: async () => {},
+      register: async () => {},
+      apply: async (mode) => {
+        applied.push(mode);
+      },
+    });
+
+    await sync.pageResolved("dark");
+    await sync.themeUpdated({ properties: { color_scheme: "light" } });
+    assert.deepEqual(applied, ["dark", "light"]);
   });
 });
 

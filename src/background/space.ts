@@ -83,17 +83,17 @@ export function iconsForMode(mode: ThemeMode): Record<string, string> {
  *   - mapping them the other way round also rendered the wrong glyph;
  *   - `defaultIcons` + context paint rendered no glyph at all.
  *
- * So the automatic mechanism is not used at all. This function reads the
- * effective theme from the shared detection layer — the *same* decision the
- * space page uses for its own Light/Dark styling — and hands Thunderbird one
- * concrete set of icons through `defaultIcons`. The extension decides; there is
- * nothing left for Thunderbird to interpret.
+ * So the automatic mechanism is not used at all. This function accepts the mode
+ * already resolved by the page/background coordinator (falling back to worker-side
+ * detection only for direct callers) and hands Thunderbird one concrete set of
+ * icons through `defaultIcons`. The extension decides; there is nothing left for
+ * Thunderbird to interpret.
  *
  * `themeIcons` is explicitly set to `null` (`spaces.update()` merges properties,
  * so this is what clears the sets registered by 0.1.2/0.1.3).
  */
-export async function buildButtonProperties(): Promise<SpaceButtonProperties> {
-  const mode = await detectTheme();
+export async function buildButtonProperties(resolvedMode?: ThemeMode): Promise<SpaceButtonProperties> {
+  const mode = resolvedMode ?? (await detectTheme());
   return {
     title: t("spaceTitle"),
     defaultIcons: iconsForMode(mode),
@@ -128,7 +128,7 @@ function isAlreadyExists(error: unknown): boolean {
  * Register (or adopt) the ThunderNotes space. Idempotent and safe to await
  * concurrently from `onStartup`, `onInstalled` and worker wake-up.
  */
-export async function registerSpace(): Promise<SpaceRegistration> {
+export async function registerSpace(resolvedMode?: ThemeMode): Promise<SpaceRegistration> {
   const spaces = getBrowser()?.spaces;
   if (!spaces) {
     return { ok: false, created: false, error: "spaces API unavailable" };
@@ -137,7 +137,7 @@ export async function registerSpace(): Promise<SpaceRegistration> {
   const url = getBrowser()!.runtime.getURL(SPACE_PAGE);
   // Resolved before the space is touched, so the very first registration already
   // carries the icon for the current theme.
-  const button = await buildButtonProperties();
+  const button = await buildButtonProperties(resolvedMode);
 
   let existing: Space | undefined;
   try {
@@ -180,12 +180,12 @@ export async function registerSpace(): Promise<SpaceRegistration> {
 /**
  * Re-apply the space button with the icon for the current theme.
  *
- * Called when Thunderbird's theme changes and once when the space is opened. It
- * re-reads the effective theme, so this is also what makes a live Light <-> Dark
- * switch change the toolbar glyph. Upgrading from an older build is handled by the
- * same call, because `buildButtonProperties()` always clears `themeIcons`.
+ * Called by the serialized theme coordinator with the best resolved mode. This is
+ * what makes a live Light <-> Dark switch change the toolbar glyph. Upgrading from
+ * an older build is handled by the same call, because `buildButtonProperties()`
+ * always clears `themeIcons`.
  */
-export async function applySpaceButton(): Promise<boolean> {
+export async function applySpaceButton(resolvedMode?: ThemeMode): Promise<boolean> {
   const spaces = getBrowser()?.spaces;
   if (!spaces) return false;
 
@@ -199,7 +199,7 @@ export async function applySpaceButton(): Promise<boolean> {
     // object: the object form only arrived in Thunderbird 135, while the string
     // form works in every version that has the spaces API at all. Keeping the
     // declared `strict_min_version` at 128 therefore stays honest.
-    const button = await buildButtonProperties();
+    const button = await buildButtonProperties(resolvedMode);
     await spaces.update(space.id, url, button);
     return true;
   } catch (error) {
@@ -215,9 +215,9 @@ export async function applySpaceButton(): Promise<boolean> {
  */
 let inFlight: Promise<SpaceRegistration> | null = null;
 
-export function ensureSpaceRegistered(): Promise<SpaceRegistration> {
+export function ensureSpaceRegistered(resolvedMode?: ThemeMode): Promise<SpaceRegistration> {
   if (!inFlight) {
-    inFlight = registerSpace().finally(() => {
+    inFlight = registerSpace(resolvedMode).finally(() => {
       inFlight = null;
     });
   }

@@ -1,11 +1,11 @@
 /**
  * The single source of truth for "is Thunderbird currently light or dark?".
  *
- * Both consumers must agree, and they must agree *by construction* rather than by
- * keeping two copies of the rules in step:
+ * Both consumers use these parsing rules, but they do not have identical fallback
+ * capabilities:
  *
  *  - the space page, which styles its own Light/Dark UI;
- *  - the background service worker, which picks the Space toolbar icon.
+ *  - the background service worker, which has no DOM media query.
  *
  * Detection is a three-tier fallback, applied at load and on every change:
  *
@@ -19,8 +19,9 @@
  *  3. `prefers-color-scheme`, which in a Thunderbird document is derived from the
  *     embedding chrome window.
  *
- * There is no documented API that returns "is Thunderbird dark" unconditionally,
- * which is why this fallback chain exists.
+ * The page therefore sends its final resolved mode to the worker. There is no
+ * documented API that returns "is Thunderbird dark" unconditionally, which is why
+ * the fallback chain and explicit synchronization both exist.
  */
 
 import { getBrowser } from "../api/browser";

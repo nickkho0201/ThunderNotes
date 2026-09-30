@@ -12,6 +12,7 @@ import { NoteStore } from "./store";
 import { NotesListView } from "./list-view";
 import { EditorView, colorLabel } from "./editor-view";
 import { startTheme } from "../theme";
+import { synchronizeResolvedTheme } from "../theme/message";
 import { t } from "../i18n";
 import { openUiPreferencesStore } from "../storage/ui-preferences";
 import type { Note, NoteColor, NoteFormat } from "../notes/model";
@@ -146,17 +147,14 @@ async function main(): Promise<void> {
   /**
    * Ask the background to re-apply the space button.
    *
-   * The background resolves the effective theme and re-applies one concrete
-   * `defaultIcons` glyph set while clearing `themeIcons`. This also replaces icon
-   * properties an older build registered. Costs one message.
+   * The page sends the mode it has already resolved, including its DOM media-query
+   * fallback, so the DOM-less worker cannot independently fall back to Light.
    */
-  const notifyThemeToBackground = (): void => {
-    void getBrowser()?.runtime.sendMessage({ type: "thundernotes:theme-changed" }).catch(() => {
-      // The background may be asleep; the button keeps its current icon set,
-      // which is not worth surfacing to the user.
+  synchronizeResolvedTheme(theme, (message) => {
+    void getBrowser()?.runtime.sendMessage(message).catch(() => {
+      // A failed icon refresh is not worth surfacing inside the notes UI.
     });
-  };
-  theme.onModeChange(notifyThemeToBackground);
+  });
 
   const repository = await openNotesRepository();
 

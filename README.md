@@ -131,6 +131,11 @@ never make the app look broken.
 This state is view configuration, not domain data: it is stored separately from
 the notes database and is never written into individual `Note` records.
 
+The background also stores the last page-resolved Light/Dark mode under
+`thundernotes.resolvedThemeMode`, separately from the user-facing preferences, so
+an MV3 worker restart cannot replace a confirmed Space glyph with its DOM-less
+default.
+
 ---
 
 ## Requirements
@@ -341,7 +346,7 @@ URLs, control-character-obfuscated schemes, and unknown tags.
 ## Testing
 
 `pnpm test` builds the extension and the test bundles with esbuild, then runs
-Node's built-in test runner. There are **295 tests** across 11 files:
+Node's built-in test runner. There are **301 tests** across 11 files:
 
 | Suite | Covers |
 | --- | --- |
@@ -352,7 +357,7 @@ Node's built-in test runner. There are **295 tests** across 11 files:
 | `migrations` | Migration chain integrity, upgrade from version 0, dropping unreadable records, forward compatibility. |
 | `store` | Autosave debounce/coalescing, flush on note switch, no-op suppression, failure handling and retry, selection after delete, cancelling a queued write for a deleted note, filter/sort recomputation, and initial-selection restore (valid id / deleted id / nonsense id / id hidden by the restored filter / empty list). |
 | `preferences` | UI preference validation (unknown sort/colour/format, empty ids, non-objects), round-tripping through a fake `storage.local`, that the search query is not part of the stored shape, corrupt-record repair, and graceful degradation when storage throws or is absent. |
-| `space` | The Space button contract: the name matches Thunderbird's `^[a-zA-Z0-9_]+$` rule, the page URL is relative, `themeIcons` is explicitly cleared to `null`, and `defaultIcons` is selected **from the resolved theme** — dark glyph in the light theme, light glyph in the dark theme, asserted as the plain acceptance criterion so it cannot be inverted. Also: only relative paths, exactly the 16/32 px sizes, every declared file exists, the selection matches what `detectTheme()` returns (so the icon and the page cannot disagree), and the artwork is self-contained with no context paint keyword. It also tests the shared icon detector itself, since a detector that cannot fail would let a broken icon through. |
+| `space` | The Space button contract: the name matches Thunderbird's `^[a-zA-Z0-9_]+$` rule, the page URL is relative, `themeIcons` is explicitly cleared to `null`, and `defaultIcons` is selected **from the resolved theme** — dark glyph in the light theme, light glyph in the dark theme. Regression coverage includes the page-to-worker mode message, a DOM-less worker falling back to Light while the page resolved Dark, an in-flight startup race, and worker restart from the stored resolved mode. Also: only relative paths, exactly the 16/32 px sizes, every declared file exists, and the artwork is self-contained with no context paint keyword. |
 | `theme` | Colour parsing (`#rgb`, `#rgba`, `#rrggbb`, `rgb()`, `rgba()`, arrays), luminance, `color_scheme` detection, colour-based fallback, media-query fallback. |
 | `i18n` | `t()` resolution order and fallbacks, positional and named placeholder substitution (including placeholders the platform leaves unexpanded), not substituting a wrong value, catalogue integrity, locale-driven date formatting. |
 | `ui` | Loads the **real** `src/ui/notes.html` and asserts every element id the page script looks up exists and every `data-i18n*` attribute resolves to a real key. Drives the real editor, list and store together against a linkedom DOM: caret preservation, format/colour switching through actual clicks, live list preview while typing, list re-ordering on sort change, the row timestamp following the sort field, the footer counter in every list situation, the panes' structural invariants, responsive CSS invariants, virtualized windowing, roving tabindex, empty state, and sanitized preview. Also checks the primary button's state colours: every state has an explicit foreground/background pair meeting a contrast floor, hover cannot wash out the label, the disabled state is distinct from hover and carries a non-interactive cursor, and no `filter` is applied. |
@@ -413,14 +418,12 @@ These are real and deliberate, not oversights:
    a Thunderbird document follows the embedding chrome window. There is no
    documented API that returns "is Thunderbird dark" unconditionally.
 3. **The Space icon is chosen by the extension, and depends on the theme being
-   resolved correctly.** The effective theme is read through the same detection
-   layer the page uses, and the matching `defaultIcons` set is applied at
-   registration and on every `theme.onUpdated`. Two consequences: a theme
-   Thunderbird cannot classify falls back exactly as the page does (so the icon and
-   the UI can be wrong together, never inconsistently), and if Thunderbird rejects
-   an icon path it logs `Invalid icon data:` and drops the property, leaving the
-   button with no icon. There is no documented API that returns "is Thunderbird
-   dark" unconditionally. See [Space icon and themes](#space-icon-and-themes).
+   resolved correctly.** A service worker has no DOM media query, so the page sends
+   its resolved mode explicitly and the background serializes icon updates. The
+   last page-resolved mode is retained as the worker-startup fallback. If
+   Thunderbird rejects an icon path it logs `Invalid icon data:` and drops the
+   property, leaving the button with no icon. See
+   [Space icon and themes](#space-icon-and-themes).
 4. **`themeIcons` is deliberately unused.** Automatic icon selection was manually
    demonstrated to produce contradictory results for a custom space button, so the
    extension decides instead. The property is explicitly cleared to `null` on every
@@ -455,11 +458,12 @@ The Space toolbar icon is **selected by the extension**, not by Thunderbird: the
 effective Light/Dark theme is resolved at runtime and one concrete set of icons is
 handed over through `defaultIcons`.
 
-> **Status: manually confirmed.** Three rounds of testing in a real Thunderbird 156
-> instance showed that letting Thunderbird choose the icon (via `themeIcons`)
-> produced contradictory results, and that context paint renders nothing for a
-> custom space button. Neither mechanism is used. The behaviour below is the one
-> that was observed to work.
+> **Runtime facts:** testing in a real Thunderbird 156 instance showed that letting
+> Thunderbird choose the icon (via `themeIcons`) produced contradictory results,
+> and that context paint renders nothing for a custom space button. A later runtime
+> test also showed that independently resolving the theme in the DOM-less worker
+> can leave the dark glyph active while the page is correctly Dark. The current
+> synchronization path therefore still requires manual Thunderbird verification.
 
 ### Two disproved hypotheses, recorded so they are not retried
 
@@ -496,10 +500,11 @@ time, the automatic mechanism was dropped entirely.
 
 ### How the icon is chosen now
 
-1. `src/theme/detect.ts` resolves the **effective theme mode** with the same
-   three-tier fallback the space page uses for its own Light/Dark styling:
+1. `src/theme/detect.ts` resolves the **effective theme mode** with a three-tier
+   fallback:
    `theme.getCurrent().properties.color_scheme`, then the luminance of the theme's
-   background colours, then `prefers-color-scheme`.
+   background colours, then `prefers-color-scheme`. The final media-query tier is
+   available to the page, but not to the background service worker.
 2. `buildButtonProperties()` maps that mode to one concrete icon set:
 
    | Effective theme | Glyph | Files |
@@ -511,17 +516,21 @@ time, the automatic mechanism was dropped entirely.
    `null` — `spaces.update()` **merges** properties, so this is what clears the
    sets registered by 0.1.2/0.1.3.
 
-Because both the icon and the page call the *same* `detectTheme()`, the two cannot
-disagree about which theme is active.
+The page sends its already-resolved `light` or `dark` mode to the worker at page
+startup and on every change. Space mutations are serialized, so an older worker
+fallback cannot finish later and overwrite that mode.
 
 ### When it is re-evaluated
 
-- **At registration.** `registerSpace()` resolves the theme before creating or
-  updating the space, so the first appearance is already correct.
-- **On a theme change.** The service worker listens to `theme.onUpdated` and calls
-  `spaces.update()` with the newly selected `defaultIcons`. The space page also
-  forwards its own resolved mode over `runtime.sendMessage`, which additionally
-  covers a "System theme — auto" switch that may fire no theme event.
+- **At registration / worker restart.** The worker uses a decisive theme API result
+  when available; otherwise it falls back to the last page-resolved mode stored in
+  `browser.storage.local`.
+- **When the page starts or its effective mode changes.** The page sends the actual
+  resolved mode over `runtime.sendMessage`, and the worker applies the matching
+  `defaultIcons` directly.
+- **On `theme.onUpdated`.** The worker consumes the event's new theme and queues the
+  update through the same coordinator, preventing competing `spaces.update()` calls
+  from completing out of order.
 
 ### Icon files
 

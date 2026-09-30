@@ -8,14 +8,25 @@
  */
 
 import { getBrowser } from "../api/browser";
+import { detectThemeMode } from "../theme/detect";
+import { themeModeFromMessage } from "../theme/message";
 import { applySpaceButton, ensureSpaceRegistered } from "./space";
+import type { SpaceRegistration } from "./space";
+import { loadStoredThemeMode, SpaceThemeSync, storeResolvedThemeMode } from "./theme-sync";
 
 const api = getBrowser();
+const themeSync = api
+  ? new SpaceThemeSync<SpaceRegistration>({
+      detect: () => detectThemeMode({ mediaQuery: null }),
+      load: () => loadStoredThemeMode(api.storage?.local),
+      save: (mode) => storeResolvedThemeMode(api.storage?.local, mode),
+      register: (mode) => ensureSpaceRegistered(mode),
+      apply: (mode) => applySpaceButton(mode),
+    })
+  : null;
 
 function boot(): void {
-  // `registerSpace()` resolves the effective theme itself before creating or
-  // updating the space, so the first registration already carries the right icon.
-  void ensureSpaceRegistered();
+  void themeSync?.boot();
 }
 
 if (api) {
@@ -27,11 +38,11 @@ if (api) {
   // so the same handler is correct for both.
   api.runtime.onInstalled.addListener(boot);
 
-  // Live Light <-> Dark switching. `theme.onUpdated` fires when a theme is
-  // applied, and `applySpaceButton()` re-reads the effective mode and hands
-  // Thunderbird the matching `defaultIcons`.
-  api.theme?.onUpdated.addListener(() => {
-    void applySpaceButton();
+  // Live Light <-> Dark switching. The event carries the new theme; the
+  // coordinator combines it with the page/stored fallback and hands Thunderbird
+  // the matching `defaultIcons` without racing another update.
+  api.theme?.onUpdated.addListener((updateInfo) => {
+    void themeSync?.themeUpdated(updateInfo.theme);
   });
 }
 
@@ -44,17 +55,15 @@ boot();
  * Small channel used by the space page.
  *
  *  - `thundernotes:space-info` — diagnostics (the page's own space id).
- *  - `thundernotes:theme-changed` — the page resolved a different theme mode, so
- *    the button is re-applied. This is belt-and-braces alongside the worker's own
- *    `theme.onUpdated` listener: the page evaluates `prefers-color-scheme` too,
- *    which covers a "System theme — auto" switch that fires no theme event.
+ *  - `thundernotes:theme-changed` — the page sends its resolved mode, including
+ *    the DOM-only `prefers-color-scheme` fallback unavailable to this worker.
  */
 api?.runtime.onMessage.addListener((message, _sender, sendResponse) => {
   if (message === null || typeof message !== "object") return false;
   const type = (message as { type?: unknown }).type;
 
   if (type === "thundernotes:space-info") {
-    void ensureSpaceRegistered().then((result) => {
+    void themeSync?.boot().then((result) => {
       sendResponse({
         ok: result.ok,
         created: result.created,
@@ -65,11 +74,13 @@ api?.runtime.onMessage.addListener((message, _sender, sendResponse) => {
     return true; // async response
   }
 
-  if (type === "thundernotes:theme-changed") {
-    // Fire-and-forget: the page does not need to wait, and a failure here must
-    // not disturb the UI.
-    void applySpaceButton();
-    return false;
+  const resolvedMode = themeModeFromMessage(message);
+  if (resolvedMode) {
+    void themeSync?.pageResolved(resolvedMode).then(
+      () => sendResponse({ ok: true }),
+      () => sendResponse({ ok: false })
+    );
+    return true;
   }
 
   return false;
