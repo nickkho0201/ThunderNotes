@@ -85,9 +85,10 @@ function toFiniteNumber(value: unknown, fallback: number): number {
 }
 
 /**
- * Validate/repair a note coming from an untrusted source (disk, import file).
+ * Validate/repair a historical or partially corrupt local storage record.
  * Never throws: unreadable input yields `null` so callers can skip the record
- * instead of losing the whole database.
+ * instead of losing the whole database. External Portable Data imports use a
+ * separate strict decoder and never call this permissive normalizer.
  */
 export function normalizeNote(input: unknown): Note | null {
   if (input === null || typeof input !== "object") return null;

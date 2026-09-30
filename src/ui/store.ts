@@ -65,6 +65,19 @@ export interface NoteStoreOptions {
   initialFilter?: Partial<NotesFilter>;
 }
 
+export interface NoteStoreMutationSession {
+  getNoteSnapshot(): readonly Note[];
+  writeBarrier(): Promise<void>;
+  replaceAll(notes: readonly Note[]): Promise<void>;
+}
+
+export class StoreMutationLockedError extends Error {
+  constructor() {
+    super("Note mutations are temporarily locked.");
+    this.name = "StoreMutationLockedError";
+  }
+}
+
 /** Immutable array replace (`Array.prototype.with` is avoided for compatibility). */
 function replaceAt<T>(list: readonly T[], index: number, value: T): T[] {
   const copy = [...list];
@@ -159,6 +172,10 @@ export class NoteStore {
   private readonly autosave: ReturnType<typeof createDebounced<[Note]>>;
   /** Notes with unwritten changes, keyed by id. */
   private readonly dirty = new Map<string, Note>();
+  /** Deletes reflected in memory but not yet confirmed by storage. */
+  private readonly pendingDeletes = new Set<string>();
+  private readonly inFlightWrites = new Set<Promise<void>>();
+  private mutationLocked = false;
   private readonly now: () => number;
 
   constructor(
@@ -170,7 +187,7 @@ export class NoteStore {
     if (options.initialFilter) this.filter = { ...this.filter, ...options.initialFilter };
     this.autosave = createDebounced<[Note]>(
       (note) => {
-        void this.persist(note);
+        this.queuePersist(note);
       },
       options.autosaveDelayMs ?? AUTOSAVE_DELAY_MS
     );
@@ -230,6 +247,15 @@ export class NoteStore {
 
   getNotes(): readonly IndexedNote[] {
     return this.indexed;
+  }
+
+  /** Immutable snapshot of current domain state, including pending edits. */
+  getNoteSnapshot(): readonly Note[] {
+    return this.notes.map((note) => structuredClone(note));
+  }
+
+  isMutationLocked(): boolean {
+    return this.mutationLocked;
   }
 
   getVisible(): readonly IndexedNote[] {
@@ -355,6 +381,7 @@ export class NoteStore {
    * expected to focus the editor immediately.
    */
   async createNote(partial: Partial<Note> = {}): Promise<Note> {
+    this.assertMutationAllowed();
     const note = createNote({ format: "plain", ...partial });
     this.notes = [note, ...this.notes];
     this.noteIndex.set(note.id, note);
@@ -372,13 +399,17 @@ export class NoteStore {
     }
 
     this.selectedId = note.id;
+    this.dirty.set(note.id, note);
+    this.setSaveStatus("saving");
     this.generation += 1;
     this.emit({ type: "notes" });
     this.emit({ type: "visible" });
     this.emit({ type: "selection" });
 
     try {
-      await this.repository.create(note);
+      await this.trackWrite(this.repository.create(note));
+      if (this.dirty.get(note.id) === note) this.dirty.delete(note.id);
+      if (this.dirty.size === 0) this.setSaveStatus("saved");
     } catch (error) {
       this.reportError(error, "save");
     }
@@ -393,6 +424,7 @@ export class NoteStore {
     id: string,
     change: Partial<Pick<Note, "content" | "format" | "color">>
   ): Note | null {
+    this.assertMutationAllowed();
     const current = this.noteIndex.get(id);
     if (!current) return null;
 
@@ -432,11 +464,13 @@ export class NoteStore {
   }
 
   async deleteNote(id: string): Promise<void> {
+    this.assertMutationAllowed();
     const existed = this.noteIndex.has(id);
     if (!existed) return;
 
     // Drop any pending write: the record is about to disappear.
     this.dirty.delete(id);
+    this.pendingDeletes.add(id);
     this.autosave.cancel();
 
     this.notes = this.notes.filter((note) => note.id !== id);
@@ -451,7 +485,8 @@ export class NoteStore {
     if (wasSelected) this.emit({ type: "selection" });
 
     try {
-      await this.repository.delete(id);
+      await this.trackWrite(this.repository.delete(id));
+      this.pendingDeletes.delete(id);
       this.setSaveStatus("saved");
     } catch (error) {
       this.reportError(error, "delete");
@@ -476,35 +511,107 @@ export class NoteStore {
       // Only report "saved" when nothing newer is queued.
       if (this.dirty.size === 0) this.setSaveStatus("saved");
     } catch (error) {
-      this.dirty.set(pending.id, pending);
+      if (!this.dirty.has(pending.id)) this.dirty.set(pending.id, pending);
       this.setSaveStatus("error");
       this.reportError(error, "save");
+      throw error;
     }
+  }
+
+  private queuePersist(note: Note): void {
+    const write = this.trackWrite(this.persist(note));
+    void write.catch(() => undefined);
+  }
+
+  private trackWrite(write: Promise<void>): Promise<void> {
+    this.inFlightWrites.add(write);
+    void write
+      .catch(() => undefined)
+      .finally(() => {
+        this.inFlightWrites.delete(write);
+      });
+    return write;
   }
 
   /** Write every pending change immediately (note switch, unload, hide). */
   flushPending(): void {
     if (this.dirty.size === 0) return;
-    if (this.autosave.pending) {
-      // Let the debounced write run now, with its already-captured note. Starting
-      // a second write for the same note here would double-write the record.
-      this.autosave.flush();
-      return;
+    this.autosave.cancel();
+    const pending = [...this.dirty.values()];
+    for (const note of pending) this.queuePersist(note);
+  }
+
+  /**
+   * Run a short exclusive dataset mutation. The lock is always released, and
+   * callers decide whether to commit only after an authoritative re-plan.
+   */
+  async withMutationLock<T>(
+    work: (session: NoteStoreMutationSession) => Promise<T>
+  ): Promise<T> {
+    if (this.mutationLocked) throw new StoreMutationLockedError();
+    this.mutationLocked = true;
+    const session: NoteStoreMutationSession = {
+      getNoteSnapshot: () => this.getNoteSnapshot(),
+      writeBarrier: () => this.writeBarrier(),
+      replaceAll: (notes) => this.replaceAllUnderLock(notes),
+    };
+    try {
+      return await work(session);
+    } finally {
+      this.mutationLocked = false;
+    }
+  }
+
+  private assertMutationAllowed(): void {
+    if (this.mutationLocked) throw new StoreMutationLockedError();
+  }
+
+  private async writeBarrier(): Promise<void> {
+    this.autosave.cancel();
+    if (this.inFlightWrites.size > 0) {
+      await Promise.allSettled([...this.inFlightWrites]);
     }
     const pending = [...this.dirty.values()];
-    this.dirty.clear();
-    for (const note of pending) {
-      void this.repository
-        .update(note)
-        .then(() => {
-          if (this.dirty.size === 0) this.setSaveStatus("saved");
-        })
-        .catch((error) => {
-          this.dirty.set(note.id, note);
-          this.setSaveStatus("error");
-          this.reportError(error, "save");
-        });
+    if (pending.length > 0) await Promise.all(pending.map((note) => this.persist(note)));
+    const deletes = [...this.pendingDeletes];
+    if (deletes.length > 0) {
+      await Promise.all(
+        deletes.map(async (id) => {
+          try {
+            await this.repository.delete(id);
+            this.pendingDeletes.delete(id);
+          } catch (error) {
+            this.reportError(error, "delete");
+            throw error;
+          }
+        }),
+      );
     }
+    if (this.dirty.size > 0 || this.pendingDeletes.size > 0 || this.inFlightWrites.size > 0) {
+      throw new Error("Unable to establish a note persistence write barrier.");
+    }
+  }
+
+  private async replaceAllUnderLock(notes: readonly Note[]): Promise<void> {
+    if (!this.mutationLocked) throw new StoreMutationLockedError();
+    const replacement = notes.map((note) => structuredClone(note));
+    await this.repository.replaceAll(replacement);
+    this.autosave.cancel();
+    this.dirty.clear();
+    this.pendingDeletes.clear();
+    this.notes = replacement;
+    this.reindex();
+    if (
+      this.selectedId === null ||
+      !this.visible.some((entry) => entry.note.id === this.selectedId)
+    ) {
+      this.selectedId = this.visible[0]?.note.id ?? null;
+    }
+    this.generation += 1;
+    this.setSaveStatus("saved");
+    this.emit({ type: "notes" });
+    this.emit({ type: "visible" });
+    this.emit({ type: "selection" });
   }
 
   /** Stop timers; used when the page is torn down (tests especially). */

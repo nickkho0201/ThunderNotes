@@ -15,7 +15,7 @@ export class MemoryNotesRepository implements NotesRepository {
     schemaVersion: CURRENT_SCHEMA_VERSION,
   };
 
-  private readonly notes = new Map<string, Note>();
+  private notes = new Map<string, Note>();
 
   async getAll(): Promise<Note[]> {
     return [...this.notes.values()].map((note) => ({ ...note }));
@@ -40,6 +40,12 @@ export class MemoryNotesRepository implements NotesRepository {
 
   async putMany(notes: Note[]): Promise<void> {
     for (const note of notes) this.notes.set(note.id, { ...note });
+  }
+
+  async replaceAll(notes: readonly Note[]): Promise<void> {
+    const replacement = new Map<string, Note>();
+    for (const note of notes) replacement.set(note.id, { ...note });
+    this.notes = replacement;
   }
 
   async clear(): Promise<void> {

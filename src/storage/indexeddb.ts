@@ -164,9 +164,20 @@ export class IndexedDbNotesRepository implements NotesRepository {
   ): Promise<T> {
     const db = await this.open();
     const tx = db.transaction(storeNames, mode);
-    const result = await work(tx);
-    await transactionDone(tx);
-    return result;
+    const done = transactionDone(tx);
+    try {
+      const result = await work(tx);
+      await done;
+      return result;
+    } catch (error) {
+      try {
+        tx.abort();
+      } catch {
+        // The transaction may already have aborted or completed.
+      }
+      await done.catch(() => undefined);
+      throw error;
+    }
   }
 
   async getAll(): Promise<Note[]> {
@@ -217,6 +228,18 @@ export class IndexedDbNotesRepository implements NotesRepository {
     await this.transaction([STORE_NOTES], "readwrite", (tx) => {
       const store = tx.objectStore(STORE_NOTES);
       for (const note of notes) store.put(note);
+    });
+  }
+
+  async replaceAll(notes: readonly Note[]): Promise<void> {
+    await this.transaction([STORE_NOTES, STORE_META], "readwrite", (tx) => {
+      const notesStore = tx.objectStore(STORE_NOTES);
+      notesStore.clear();
+      for (const note of notes) notesStore.put(note);
+      tx.objectStore(STORE_META).put({
+        key: META_SCHEMA_VERSION,
+        value: CURRENT_SCHEMA_VERSION,
+      } satisfies MetaRecord);
     });
   }
 

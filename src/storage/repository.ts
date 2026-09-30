@@ -21,8 +21,11 @@ export interface NotesRepository {
 
   delete(id: string): Promise<void>;
 
-  /** Bulk insert/overwrite, used by tests and (later) by import. */
+  /** Bulk insert/overwrite, used by tests and data migrations. */
   putMany(notes: Note[]): Promise<void>;
+
+  /** Atomically replace the complete note dataset. */
+  replaceAll(notes: readonly Note[]): Promise<void>;
 
   /** Remove everything. Used by tests; reserved for a future "reset" action. */
   clear(): Promise<void>;

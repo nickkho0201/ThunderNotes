@@ -53,6 +53,11 @@ class SpyRepository implements NotesRepository {
       else this.notes[index] = { ...value };
     }
   }
+  async replaceAll(values: readonly Note[]): Promise<void> {
+    if (this.failOnWrite) throw new Error("write failed");
+    const replacement = values.map((value) => ({ ...value }));
+    this.notes.splice(0, this.notes.length, ...replacement);
+  }
   async clear(): Promise<void> {
     this.notes.length = 0;
   }
