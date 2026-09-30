@@ -1,0 +1,20 @@
+# Normalize line endings to LF in the repository, so the source is byte-identical
+# regardless of the platform it is checked out on. Without this, a Windows
+# checkout with core.autocrlf would rewrite every file, which shows up as a dirty
+# working tree and can corrupt the shell/SVG assets.
+* text=auto eol=lf
+
+# Binary assets must never be line-ending converted.
+*.xpi binary
+*.png binary
+*.jpg binary
+*.jpeg binary
+*.gif binary
+*.webp binary
+*.ico binary
+*.woff binary
+*.woff2 binary
+*.zip binary
+
+# Keep the lockfile exactly as the package manager wrote it.
+pnpm-lock.yaml -text

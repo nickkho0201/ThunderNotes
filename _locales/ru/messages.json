@@ -1,0 +1,167 @@
+{
+  "extName": {
+    "message": "ThunderNotes"
+  },
+  "extDescription": {
+    "message": "Быстрые локальные заметки внутри пространства Thunderbird."
+  },
+  "spaceTitle": {
+    "message": "ThunderNotes"
+  },
+  "newNote": {
+    "message": "Новая заметка"
+  },
+  "newNoteTooltip": {
+    "message": "Создать новую заметку"
+  },
+  "searchPlaceholder": {
+    "message": "Поиск заметок…"
+  },
+  "searchLabel": {
+    "message": "Поиск по заметкам"
+  },
+  "clearSearch": {
+    "message": "Очистить поиск"
+  },
+  "colorFilterLabel": {
+    "message": "Фильтр по цвету"
+  },
+  "sortLabel": {
+    "message": "Сортировка заметок"
+  },
+  "sortCreatedDesc": {
+    "message": "Создание: сначала новые"
+  },
+  "sortCreatedAsc": {
+    "message": "Создание: сначала старые"
+  },
+  "sortUpdatedDesc": {
+    "message": "Изменение: сначала новые"
+  },
+  "sortUpdatedAsc": {
+    "message": "Изменение: сначала старые"
+  },
+  "colorAll": {
+    "message": "Все"
+  },
+  "colorNone": {
+    "message": "Без цвета"
+  },
+  "colorRed": {
+    "message": "Красный"
+  },
+  "colorOrange": {
+    "message": "Оранжевый"
+  },
+  "colorYellow": {
+    "message": "Жёлтый"
+  },
+  "colorGreen": {
+    "message": "Зелёный"
+  },
+  "colorBlue": {
+    "message": "Синий"
+  },
+  "colorPurple": {
+    "message": "Фиолетовый"
+  },
+  "formatPlain": {
+    "message": "Обычный текст"
+  },
+  "formatMarkdown": {
+    "message": "Markdown"
+  },
+  "modeEdit": {
+    "message": "Редактор"
+  },
+  "modePreview": {
+    "message": "Просмотр"
+  },
+  "editorPlaceholder": {
+    "message": "Начните печатать…"
+  },
+  "editorLabel": {
+    "message": "Текст заметки"
+  },
+  "formatLabel": {
+    "message": "Формат"
+  },
+  "noteColorLabel": {
+    "message": "Цвет заметки"
+  },
+  "delete": {
+    "message": "Удалить"
+  },
+  "deleteTooltip": {
+    "message": "Удалить эту заметку"
+  },
+  "deleteConfirmTitle": {
+    "message": "Удаление заметки"
+  },
+  "deleteConfirmMessage": {
+    "message": "Удалить заметку без возможности восстановления?"
+  },
+  "deleteConfirmOk": {
+    "message": "Удалить"
+  },
+  "cancel": {
+    "message": "Отмена"
+  },
+  "dateCreated": {
+    "message": "Создано"
+  },
+  "dateUpdated": {
+    "message": "Изменено"
+  },
+  "backToList": {
+    "message": "Назад к заметкам"
+  },
+  "editorBackHint": {
+    "message": "Список заметок"
+  },
+  "emptyNoNotes": {
+    "message": "Заметок пока нет."
+  },
+  "emptyNoNotesHint": {
+    "message": "Нажмите «Новая заметка», чтобы написать первую."
+  },
+  "emptyNoMatches": {
+    "message": "Ни одна заметка не соответствует поиску или фильтру."
+  },
+  "emptySelection": {
+    "message": "Выберите заметку, чтобы начать писать."
+  },
+  "noteCount": {
+    "message": "$1 из $2 заметок"
+  },
+  "saved": {
+    "message": "Сохранено"
+  },
+  "saving": {
+    "message": "Сохранение…"
+  },
+  "saveFailed": {
+    "message": "Не удалось сохранить"
+  },
+  "storageMemoryWarning": {
+    "message": "Постоянное хранилище недоступно — заметки за эту сессию не будут сохранены."
+  },
+  "loadError": {
+    "message": "Не удалось загрузить заметки: $1"
+  },
+  "saveError": {
+    "message": "Не удалось сохранить заметку: $1"
+  },
+  "deleteError": {
+    "message": "Не удалось удалить заметку: $1"
+  },
+  "dismiss": {
+    "message": "Закрыть"
+  },
+  "unknownError": {
+    "message": "Неизвестная ошибка"
+  },
+  "spaceRegisterError": {
+    "message": "ThunderNotes не смог добавить кнопку в панель пространств: $1"
+  }
+}

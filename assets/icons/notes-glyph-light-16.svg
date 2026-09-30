@@ -1,0 +1,13 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 16 16" fill="none">
+  <!--
+    LIGHT glyph, for DARK themes. Supplied as `themeIcons[].light`.
+
+    The same artwork as notes-glyph-dark-16.svg with a light colour, so the two
+    are a matched pair. Self-contained (no context paint keywords): a manual test
+    in Thunderbird 156 showed the context paint mechanism does not work for a
+    custom space button, so the colour must be baked in.
+  -->
+  <path d="M8 1.25 3.4 4.6v3.1c0 2.55 1.94 4.9 4.6 5.55 2.66-.65 4.6-3 4.6-5.55V4.6L8 1.25Z"
+        stroke="#fbfbfe" stroke-width="1.4" stroke-linejoin="round"/>
+  <path d="M8.85 4.5 6.45 8.05h1.6l-.8 3.25L9.85 7.6h-1.6l.6-3.1Z" fill="#fbfbfe"/>
+</svg>

@@ -1,0 +1,53 @@
+# ---------------------------------------------------------------------------
+# Dependencies
+# ---------------------------------------------------------------------------
+node_modules/
+
+# ---------------------------------------------------------------------------
+# Build output and packaged artifacts
+#
+# These are all reproducible from the committed source via `npm run package`.
+# The local XPI stays on disk; it is deliberately not part of Git history.
+# ---------------------------------------------------------------------------
+dist/
+build/
+artifacts/
+*.xpi
+
+# Generated at build time from _locales/*/messages.json by
+# scripts/generate-locales.mjs. Source of truth is the locale catalogue.
+src/i18n/fallback-messages.ts
+
+# ---------------------------------------------------------------------------
+# Logs, coverage and test output
+# ---------------------------------------------------------------------------
+*.log
+npm-debug.log*
+coverage/
+.nyc_output/
+*.lcov
+
+# ---------------------------------------------------------------------------
+# Environment and local machine configuration
+#
+# The extension needs no configuration or credentials; nothing here should ever
+# be committed. Listed so an accidental `.env` cannot slip in unnoticed.
+# ---------------------------------------------------------------------------
+.env
+.env.*
+!.env.example
+
+# ---------------------------------------------------------------------------
+# Editor / IDE state
+# ---------------------------------------------------------------------------
+.vscode/
+.idea/
+*.swp
+*.swo
+
+# ---------------------------------------------------------------------------
+# OS metadata
+# ---------------------------------------------------------------------------
+.DS_Store
+Thumbs.db
+desktop.ini

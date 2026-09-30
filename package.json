@@ -1,0 +1,29 @@
+{
+  "name": "thundernotes",
+  "version": "0.1.4",
+  "private": true,
+  "description": "ThunderNotes - a fast local notes manager living inside a Thunderbird Space.",
+  "license": "MIT",
+  "type": "module",
+  "scripts": {
+    "clean": "node scripts/clean.mjs",
+    "locales": "node scripts/generate-locales.mjs",
+    "typecheck": "npm run locales && tsc --noEmit",
+    "build": "node scripts/build.mjs",
+    "build:test": "node scripts/build-tests.mjs",
+    "build:verify": "node scripts/build-verify.mjs",
+    "test": "npm run build && npm run build:test && node --test \"build/test/*.test.js\"",
+    "verify": "npm run build:verify && node build/verify-dist.mjs",
+    "xpi": "npm run build && node scripts/build.mjs --xpi && npm run verify",
+    "package": "npm run typecheck && npm test && node scripts/build.mjs --xpi && npm run verify"
+  },
+  "devDependencies": {
+    "@types/node": "^22.10.2",
+    "esbuild": "^0.24.2",
+    "linkedom": "^0.18.13",
+    "typescript": "^5.7.2"
+  },
+  "dependencies": {
+    "marked": "^15.0.4"
+  }
+}

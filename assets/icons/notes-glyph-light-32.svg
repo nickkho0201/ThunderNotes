@@ -1,0 +1,11 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="32" height="32" viewBox="0 0 32 32" fill="none">
+  <!--
+    LIGHT glyph at 32px, for DARK themes. Supplied as `themeIcons[].light`.
+
+    Exactly notes-glyph-light-16.svg at 2x, matching notes-glyph-dark-32.svg.
+    See notes-glyph-dark-16.svg for why the artwork is self-contained.
+  -->
+  <path d="M16 2.5 6.8 9.2v6.2c0 5.1 3.88 9.8 9.2 11.1 5.32-1.3 9.2-6 9.2-11.1V9.2L16 2.5Z"
+        stroke="#fbfbfe" stroke-width="2.8" stroke-linejoin="round"/>
+  <path d="M17.7 9 12.9 16.1h3.2l-1.6 6.5L19.7 15.2h-3.2l1.2-6.2Z" fill="#fbfbfe"/>
+</svg>

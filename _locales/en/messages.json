@@ -1,0 +1,222 @@
+{
+  "extName": {
+    "message": "ThunderNotes",
+    "description": "Extension name shown in Thunderbird."
+  },
+  "extDescription": {
+    "message": "A fast local notes manager inside a Thunderbird Space.",
+    "description": "Extension description shown in the add-ons manager."
+  },
+  "spaceTitle": {
+    "message": "ThunderNotes",
+    "description": "Spaces toolbar button tooltip and space name."
+  },
+  "newNote": {
+    "message": "New note",
+    "description": "Placeholder shown for an empty note, and the New note button label."
+  },
+  "newNoteTooltip": {
+    "message": "Create a new note",
+    "description": "Tooltip for the new note button."
+  },
+  "searchPlaceholder": {
+    "message": "Search notes…",
+    "description": "Placeholder of the search input."
+  },
+  "searchLabel": {
+    "message": "Search notes",
+    "description": "Accessibility label of the search input."
+  },
+  "clearSearch": {
+    "message": "Clear search",
+    "description": "Tooltip of the button clearing the search field."
+  },
+  "colorFilterLabel": {
+    "message": "Filter by color",
+    "description": "Accessibility label for the color filter group."
+  },
+  "sortLabel": {
+    "message": "Sort notes",
+    "description": "Accessibility label of the sort selector."
+  },
+  "sortCreatedDesc": {
+    "message": "Created: newest first",
+    "description": "Sort option."
+  },
+  "sortCreatedAsc": {
+    "message": "Created: oldest first",
+    "description": "Sort option."
+  },
+  "sortUpdatedDesc": {
+    "message": "Updated: newest first",
+    "description": "Sort option."
+  },
+  "sortUpdatedAsc": {
+    "message": "Updated: oldest first",
+    "description": "Sort option."
+  },
+  "colorAll": {
+    "message": "All",
+    "description": "Color filter: every note."
+  },
+  "colorNone": {
+    "message": "None",
+    "description": "Color filter: notes without a color."
+  },
+  "colorRed": {
+    "message": "Red",
+    "description": "Color name."
+  },
+  "colorOrange": {
+    "message": "Orange",
+    "description": "Color name."
+  },
+  "colorYellow": {
+    "message": "Yellow",
+    "description": "Color name."
+  },
+  "colorGreen": {
+    "message": "Green",
+    "description": "Color name."
+  },
+  "colorBlue": {
+    "message": "Blue",
+    "description": "Color name."
+  },
+  "colorPurple": {
+    "message": "Purple",
+    "description": "Color name."
+  },
+  "formatPlain": {
+    "message": "Plain Text",
+    "description": "Editor mode: plain text."
+  },
+  "formatMarkdown": {
+    "message": "Markdown",
+    "description": "Editor mode: Markdown."
+  },
+  "modeEdit": {
+    "message": "Edit",
+    "description": "Markdown sub-mode: edit the source."
+  },
+  "modePreview": {
+    "message": "Preview",
+    "description": "Markdown sub-mode: rendered preview."
+  },
+  "editorPlaceholder": {
+    "message": "Start typing…",
+    "description": "Placeholder of the note editor."
+  },
+  "editorLabel": {
+    "message": "Note content",
+    "description": "Accessibility label of the note editor."
+  },
+  "formatLabel": {
+    "message": "Format",
+    "description": "Accessibility label for the format switches."
+  },
+  "noteColorLabel": {
+    "message": "Note color",
+    "description": "Accessibility label for the per-note color picker."
+  },
+  "delete": {
+    "message": "Delete",
+    "description": "Delete button label."
+  },
+  "deleteTooltip": {
+    "message": "Delete this note",
+    "description": "Tooltip of the delete button."
+  },
+  "deleteConfirmTitle": {
+    "message": "Delete note",
+    "description": "Title of the delete confirmation dialog."
+  },
+  "deleteConfirmMessage": {
+    "message": "Delete this note permanently? This cannot be undone.",
+    "description": "Body of the delete confirmation dialog."
+  },
+  "deleteConfirmOk": {
+    "message": "Delete",
+    "description": "Confirm button of the delete dialog."
+  },
+  "cancel": {
+    "message": "Cancel",
+    "description": "Cancel button of the delete dialog."
+  },
+  "dateCreated": {
+    "message": "Created",
+    "description": "Label for the creation timestamp in a note list row."
+  },
+  "dateUpdated": {
+    "message": "Edited",
+    "description": "Label for the last-modified timestamp in a note list row."
+  },
+  "backToList": {
+    "message": "Back to notes",
+    "description": "Label of the button returning from the editor to the list in the narrow layout."
+  },
+  "editorBackHint": {
+    "message": "Notes list",
+    "description": "Text shown next to the back button in the narrow layout."
+  },
+  "emptyNoNotes": {
+    "message": "No notes yet.",
+    "description": "Empty state when there are no notes at all."
+  },
+  "emptyNoNotesHint": {
+    "message": "Click “New note” to write your first one.",
+    "description": "Hint under the empty state."
+  },
+  "emptyNoMatches": {
+    "message": "No notes match your search or filter.",
+    "description": "Empty state when filters hide everything."
+  },
+  "emptySelection": {
+    "message": "Select a note to start writing.",
+    "description": "Shown in the editor pane when no note is selected."
+  },
+  "noteCount": {
+    "message": "$1 of $2 notes",
+    "description": "Status line: visible notes of total notes. $1 = visible count, $2 = total count. Uses plain positional substitutions only; do NOT add a placeholders block (see below)."
+  },
+  "saved": {
+    "message": "Saved",
+    "description": "Autosave status: everything is persisted."
+  },
+  "saving": {
+    "message": "Saving…",
+    "description": "Autosave status: a write is in flight."
+  },
+  "saveFailed": {
+    "message": "Could not save",
+    "description": "Autosave status: the write failed."
+  },
+  "storageMemoryWarning": {
+    "message": "Persistent storage is unavailable — notes in this session will not be saved.",
+    "description": "Warning shown when IndexedDB could not be opened."
+  },
+  "loadError": {
+    "message": "Failed to load notes: $1",
+    "description": "Error banner when reading notes fails."
+  },
+  "saveError": {
+    "message": "Failed to save the note: $1",
+    "description": "Error banner when writing a note fails."
+  },
+  "deleteError": {
+    "message": "Failed to delete the note: $1",
+    "description": "Error banner when deleting a note fails."
+  },
+  "dismiss": {
+    "message": "Dismiss",
+    "description": "Tooltip of the error banner close button."
+  },
+  "unknownError": {
+    "message": "Unknown error",
+    "description": "Fallback error text."
+  },
+  "spaceRegisterError": {
+    "message": "ThunderNotes could not add its button to the Spaces toolbar: $1",
+    "description": "Background-script error when space creation fails."
+  }
+}

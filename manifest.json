@@ -1,0 +1,30 @@
+{
+  "manifest_version": 3,
+  "name": "__MSG_extName__",
+  "description": "__MSG_extDescription__",
+  "version": "0.1.4",
+  "author": "ThunderNotes",
+  "default_locale": "en",
+
+  "browser_specific_settings": {
+    "gecko": {
+      "id": "thundernotes@thundernotes.local",
+      "strict_min_version": "128.0"
+    }
+  },
+
+  "icons": {
+    "16": "assets/icons/notes-solid-16.svg",
+    "32": "assets/icons/notes-solid-32.svg",
+    "64": "assets/icons/notes-solid-64.svg"
+  },
+
+  "background": {
+    "scripts": ["background.js"],
+    "type": "module"
+  },
+
+  "content_security_policy": {
+    "extension_pages": "default-src 'none'; script-src 'self'; style-src 'self'; img-src 'self' data:; font-src 'self'; connect-src 'none'; object-src 'none'; base-uri 'none'; form-action 'none'"
+  }
+}

@@ -1,0 +1,976 @@
+/* ---------------------------------------------------------------------------
+ * ThunderNotes styles.
+ *
+ * Colour is centralised in custom properties on :root, with two value sets
+ * selected by the `data-tn-theme` attribute that `src/theme/index.ts` writes
+ * from Thunderbird's active theme. No component below defines a literal colour
+ * except the fixed note-colour palette, which is defined once as `--tn-c-*`.
+ *
+ * Density targets Thunderbird's own chrome: 13px UI text, compact 24-26px rows.
+ * ------------------------------------------------------------------------- */
+
+:root {
+  /* Light (default) */
+  --tn-bg: #f7f7f9;
+  --tn-panel-bg: #ffffff;
+  --tn-panel-alt-bg: #fbfbfd;
+  --tn-text: #15141a;
+  --tn-text-muted: #6b6a72;
+  --tn-border: #e0dfe4;
+  --tn-border-strong: #c9c8ce;
+  --tn-hover: rgba(21, 20, 26, 0.06);
+  --tn-selected: rgba(0, 97, 224, 0.12);
+  --tn-selected-text: #0a3d8f;
+  --tn-accent: #0061e0;
+  --tn-accent-text: #ffffff;
+  --tn-danger: #d7264a;
+  --tn-focus: #0061e0;
+  --tn-shadow: 0 1px 3px rgba(21, 20, 26, 0.12);
+  --tn-code-bg: rgba(21, 20, 26, 0.06);
+
+  --tn-row-height: 68px;
+
+  /* Fixed note-colour palette: readable on light and dark backgrounds. */
+  --tn-c-red: #e5484d;
+  --tn-c-orange: #e07b39;
+  --tn-c-yellow: #d5a021;
+  --tn-c-green: #2f9e44;
+  --tn-c-blue: #2b7cd3;
+  --tn-c-purple: #8b5cf6;
+  --tn-c-none: #9aa0a6;
+
+  /*
+   * Primary-button state colours.
+   *
+   * Each state is an explicit foreground/background PAIR rather than a filter on
+   * the base colours. An earlier version hovered the primary button by applying
+   * `filter: brightness(1.08)`, which lifts the text and the background together
+   * and collapses the contrast between them — invisible-ish white-on-pale-blue in
+   * the light theme. Hover must always be *darker* than the base in the light
+   * theme and *lighter* in the dark theme, never a step towards the text colour.
+   *
+   * The disabled pair is deliberately a low-saturation grey that is neither hover
+   * nor base, so a disabled button can never be mistaken for an interactive one.
+   */
+  --button-primary-bg: #0050bd;
+  --button-primary-fg: #ffffff;
+  --button-primary-hover-bg: #003d94;
+  --button-primary-hover-fg: #ffffff;
+  --button-primary-active-bg: #00306f;
+  --button-primary-active-fg: #ffffff;
+  --button-primary-border: transparent;
+  /* Desaturated grey so it cannot be mistaken for hover; still legible (>= 4.5:1). */
+  --button-primary-disabled-bg: #e4e3e8;
+  --button-primary-disabled-fg: #5a5961;
+  --button-primary-disabled-border: #d5d4da;
+}
+
+:root[data-tn-theme="dark"] {
+  --tn-bg: #1c1b22;
+  --tn-panel-bg: #2b2a33;
+  --tn-panel-alt-bg: #23222b;
+  --tn-text: #fbfbfe;
+  --tn-text-muted: #a7a6ae;
+  --tn-border: #3f3e48;
+  --tn-border-strong: #52515c;
+  --tn-hover: rgba(251, 251, 254, 0.08);
+  --tn-selected: rgba(105, 169, 255, 0.2);
+  --tn-selected-text: #cfe1ff;
+  --tn-accent: #2b7cd3;
+  --tn-accent-text: #ffffff;
+  --tn-danger: #ff6b81;
+  --tn-focus: #69a9ff;
+  --tn-shadow: 0 1px 3px rgba(0, 0, 0, 0.4);
+  --tn-code-bg: rgba(251, 251, 254, 0.09);
+
+  --tn-c-red: #ff6b6b;
+  --tn-c-orange: #f5a45c;
+  --tn-c-yellow: #e8c547;
+  --tn-c-green: #4ec96a;
+  --tn-c-blue: #69a9ff;
+  --tn-c-purple: #b39bff;
+  --tn-c-none: #8f8e97;
+
+  /*
+   * Primary button: on a dark theme the natural hover is *lighter*, which reduces
+   * label contrast — so the base is chosen dark enough (4.7:1) that even the
+   * lightened hover stays above 3:1 and remains clearly readable.
+   */
+  --button-primary-bg: #2874c9;
+  --button-primary-fg: #ffffff;
+  --button-primary-hover-bg: #3d8ad9;
+  --button-primary-hover-fg: #ffffff;
+  --button-primary-active-bg: #1f5da6;
+  --button-primary-active-fg: #ffffff;
+  --button-primary-border: transparent;
+  /* Muted but still legible; distinct from every interactive state above. */
+  --button-primary-disabled-bg: #3a3944;
+  --button-primary-disabled-fg: #c9c8ce;
+  --button-primary-disabled-border: #4a4954;
+}
+
+* {
+  box-sizing: border-box;
+}
+
+/*
+ * The `hidden` attribute must always win.
+ *
+ * The UA stylesheet's `[hidden] { display: none }` is a UA-origin rule, so any
+ * author `display` declaration beats it — and several elements toggled from JS
+ * (the error banner, the editor pane, the markdown Edit/Preview switch, the
+ * search clear button) set `display: flex` or `inline-flex`. `!important` is used
+ * deliberately here: this is a single, well-understood override of a UA default,
+ * not a style conflict to resolve.
+ */
+[hidden] {
+  display: none !important;
+}
+
+html,
+body {
+  height: 100%;
+  margin: 0;
+}
+
+body {
+  display: flex;
+  flex-direction: column;
+  background: var(--tn-bg);
+  color: var(--tn-text);
+  font: 13px/1.45 -apple-system, "Segoe UI", system-ui, sans-serif;
+  overflow: hidden;
+}
+
+/* ------------------------------------------------------------------ toolbar */
+
+.tn-toolbar {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex: 0 0 auto;
+  /* The toolbar adapts by wrapping on narrow windows instead of clipping. */
+  flex-wrap: wrap;
+  row-gap: 6px;
+  padding: 6px 8px;
+  background: var(--tn-panel-bg);
+  border-bottom: 1px solid var(--tn-border);
+}
+
+.tn-search {
+  position: relative;
+  display: flex;
+  align-items: center;
+  flex: 1 1 200px;
+  min-width: 120px;
+  max-width: 360px;
+}
+
+.tn-search__icon {
+  position: absolute;
+  left: 7px;
+  width: 14px;
+  height: 14px;
+  color: var(--tn-text-muted);
+  pointer-events: none;
+}
+
+.tn-search__input {
+  width: 100%;
+  height: 26px;
+  padding: 0 24px 0 26px;
+  color: var(--tn-text);
+  background: var(--tn-panel-alt-bg);
+  border: 1px solid var(--tn-border);
+  border-radius: 4px;
+  font: inherit;
+}
+
+.tn-search__input::-webkit-search-cancel-button {
+  display: none;
+}
+
+.tn-search__input:focus-visible {
+  outline: 2px solid var(--tn-focus);
+  outline-offset: -1px;
+}
+
+.tn-search__clear {
+  position: absolute;
+  right: 3px;
+  width: 20px;
+  height: 20px;
+}
+
+/* Colour filter buttons */
+
+.tn-colors {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+}
+
+.tn-color-btn {
+  position: relative;
+  width: 18px;
+  height: 18px;
+  padding: 0;
+  border: 1px solid var(--tn-border-strong);
+  border-radius: 50%;
+  background: transparent;
+  cursor: pointer;
+  flex: 0 0 auto;
+}
+
+.tn-color-btn::after {
+  content: "";
+  position: absolute;
+  inset: 3px;
+  border-radius: 50%;
+  background: var(--tn-c-none);
+}
+
+.tn-color-btn--sm {
+  width: 15px;
+  height: 15px;
+}
+
+.tn-color-btn--sm::after {
+  inset: 2px;
+}
+
+.tn-color-btn[data-color="red"]::after { background: var(--tn-c-red); }
+.tn-color-btn[data-color="orange"]::after { background: var(--tn-c-orange); }
+.tn-color-btn[data-color="yellow"]::after { background: var(--tn-c-yellow); }
+.tn-color-btn[data-color="green"]::after { background: var(--tn-c-green); }
+.tn-color-btn[data-color="blue"]::after { background: var(--tn-c-blue); }
+.tn-color-btn[data-color="purple"]::after { background: var(--tn-c-purple); }
+.tn-color-btn[data-color="none"]::after,
+.tn-color-btn[data-color="all"]::after { background: var(--tn-c-none); }
+
+/* The "all" filter shows a ring instead of a filled dot. */
+.tn-color-btn[data-color="all"]::after {
+  inset: 4px;
+  background: transparent;
+  border: 1.5px solid var(--tn-c-none);
+}
+
+.tn-color-btn[data-color="none"]::after {
+  background: transparent;
+  border: 1.5px dashed var(--tn-c-none);
+}
+
+/* The "all" filter carries a visible label, so it cannot be a fixed 18px dot. */
+.tn-color-btn--labelled {
+  width: auto;
+  min-width: 18px;
+  padding: 0 8px;
+  border-radius: 9px;
+  font-size: 11px;
+  line-height: 16px;
+  color: var(--tn-text-muted);
+  white-space: nowrap;
+}
+
+.tn-color-btn--labelled::after {
+  content: none;
+}
+
+.tn-color-btn--labelled.is-active {
+  color: var(--tn-accent);
+}
+
+.tn-color-btn:hover {
+  border-color: var(--tn-text-muted);
+}
+
+.tn-color-btn.is-active {
+  border-color: var(--tn-accent);
+  box-shadow: 0 0 0 1px var(--tn-accent);
+}
+
+.tn-color-btn:focus-visible {
+  outline: 2px solid var(--tn-focus);
+  outline-offset: 1px;
+}
+
+/* Buttons and select */
+
+.tn-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  height: 26px;
+  padding: 0 9px;
+  color: var(--tn-text);
+  background: var(--tn-panel-alt-bg);
+  border: 1px solid var(--tn-border-strong);
+  border-radius: 4px;
+  font: inherit;
+  cursor: pointer;
+  white-space: nowrap;
+}
+
+/* Icons are painted with a mask rather than an <img> fill, so they always take
+ * the surrounding text colour (including on the accent-filled primary button). */
+.tn-icon {
+  display: inline-block;
+  flex: 0 0 auto;
+  width: 14px;
+  height: 14px;
+  background-color: currentColor;
+  -webkit-mask-repeat: no-repeat;
+  -webkit-mask-position: center;
+  -webkit-mask-size: contain;
+  mask-repeat: no-repeat;
+  mask-position: center;
+  mask-size: contain;
+}
+
+.tn-icon--add { -webkit-mask-image: url("../../assets/icons/add.svg"); mask-image: url("../../assets/icons/add.svg"); }
+.tn-icon--delete { -webkit-mask-image: url("../../assets/icons/delete.svg"); mask-image: url("../../assets/icons/delete.svg"); }
+.tn-icon--search { -webkit-mask-image: url("../../assets/icons/search.svg"); mask-image: url("../../assets/icons/search.svg"); }
+.tn-icon--close { -webkit-mask-image: url("../../assets/icons/close.svg"); mask-image: url("../../assets/icons/close.svg"); }
+.tn-icon--back { -webkit-mask-image: url("../../assets/icons/back.svg"); mask-image: url("../../assets/icons/back.svg"); }
+
+/* The back button only exists in the narrow single-pane layout. */
+.tn-btn--back {
+  display: none;
+  padding: 0 7px;
+}
+
+.tn-btn:hover {
+  background: var(--tn-hover);
+}
+
+.tn-btn:focus-visible {
+  outline: 2px solid var(--tn-focus);
+  outline-offset: -1px;
+}
+
+/*
+ * Primary button.
+ *
+ * Every state sets its own explicit foreground AND background, and the hover /
+ * active rules are declared after the generic `.tn-btn:hover` so they win on
+ * source order at equal specificity. No `filter`, which would move the text and
+ * the fill together and destroy the contrast between them.
+ */
+.tn-btn--primary {
+  color: var(--button-primary-fg);
+  background: var(--button-primary-bg);
+  border-color: var(--button-primary-border);
+}
+
+.tn-btn--primary:hover {
+  color: var(--button-primary-hover-fg);
+  background: var(--button-primary-hover-bg);
+}
+
+.tn-btn--primary:active {
+  color: var(--button-primary-active-fg);
+  background: var(--button-primary-active-bg);
+}
+
+.tn-btn--primary:focus-visible {
+  outline-color: var(--button-primary-fg);
+  outline-offset: -3px;
+}
+
+/*
+ * Disabled last, so it overrides every interactive state above (including hover
+ * and active: a disabled control still matches `:hover` while the pointer is over
+ * it). It is a distinct desaturated pair, so it can never be confused with the
+ * hover appearance, and `cursor`/`opacity` reinforce that it is not interactive.
+ */
+.tn-btn:disabled,
+.tn-btn[aria-disabled="true"] {
+  color: var(--button-primary-disabled-fg);
+  background: var(--button-primary-disabled-bg);
+  border-color: var(--button-primary-disabled-border);
+  cursor: default;
+  opacity: 1;
+}
+
+/* A disabled button must not react to the pointer at all. */
+.tn-btn:disabled:hover,
+.tn-btn:disabled:active,
+.tn-btn[aria-disabled="true"]:hover,
+.tn-btn[aria-disabled="true"]:active {
+  color: var(--button-primary-disabled-fg);
+  background: var(--button-primary-disabled-bg);
+  border-color: var(--button-primary-disabled-border);
+}
+
+.tn-btn--danger {
+  color: var(--tn-danger);
+  border-color: var(--tn-border-strong);
+}
+
+.tn-icon-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  padding: 0;
+  color: var(--tn-text-muted);
+  background: transparent;
+  border: 1px solid transparent;
+  border-radius: 3px;
+  cursor: pointer;
+}
+
+.tn-icon-btn .tn-icon {
+  width: 12px;
+  height: 12px;
+}
+
+.tn-icon-btn:hover {
+  color: var(--tn-text);
+  background: var(--tn-hover);
+}
+
+.tn-icon-btn:focus-visible {
+  outline: 2px solid var(--tn-focus);
+  outline-offset: -1px;
+}
+
+.tn-select {
+  height: 26px;
+  max-width: 190px;
+  padding: 0 4px;
+  color: var(--tn-text);
+  background: var(--tn-panel-alt-bg);
+  border: 1px solid var(--tn-border-strong);
+  border-radius: 4px;
+  font: inherit;
+  cursor: pointer;
+}
+
+.tn-select:focus-visible {
+  outline: 2px solid var(--tn-focus);
+  outline-offset: -1px;
+}
+
+/* -------------------------------------------------------------- error banner */
+
+.tn-banner {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex: 0 0 auto;
+  padding: 5px 8px;
+  color: var(--tn-text);
+  background: color-mix(in srgb, var(--tn-danger) 16%, var(--tn-panel-bg));
+  border-bottom: 1px solid var(--tn-border);
+}
+
+.tn-banner span:first-child {
+  flex: 1 1 auto;
+}
+
+/* -------------------------------------------------------------------- layout */
+
+.tn-main {
+  display: flex;
+  flex: 1 1 auto;
+  min-height: 0;
+  /* Never scroll the page horizontally; panes manage their own overflow. */
+  min-width: 0;
+  overflow: hidden;
+}
+
+.tn-list-pane {
+  display: flex;
+  flex-direction: column;
+  /* Bounded width: a share of the pane, but never so wide that the editor
+     becomes cramped on a large window. */
+  flex: 0 1 auto;
+  width: 300px;
+  min-width: 200px;
+  max-width: 420px;
+  min-height: 0;
+  background: var(--tn-panel-alt-bg);
+  border-right: 1px solid var(--tn-border);
+}
+
+/*
+ * The scrollable part of the list pane.
+ *
+ * The status bar is a SIBLING of this element, not a child, so it stays pinned
+ * to the bottom of the pane regardless of how many rows (or how few) are
+ * rendered. `min-height: 0` is what allows the flex child to shrink below its
+ * content size instead of pushing the footer out of the pane.
+ */
+.tn-list-area {
+  display: flex;
+  flex-direction: column;
+  flex: 1 1 auto;
+  min-height: 0;
+  min-width: 0;
+}
+
+/* ---------------------------------------------------------------------- list */
+
+.tn-list {
+  flex: 1 1 auto;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+  overflow-y: auto;
+  overflow-x: hidden;
+  min-height: 0;
+}
+
+.tn-list:focus-visible {
+  outline: 2px solid var(--tn-focus);
+  outline-offset: -2px;
+}
+
+.tn-item {
+  position: relative;
+  /* Fixed height keeps scrolling cheap and predictable at 10k rows. */
+  height: var(--tn-row-height);
+  padding: 6px 8px 6px 18px;
+  border-bottom: 1px solid var(--tn-border);
+  cursor: default;
+  overflow: hidden;
+  /* Hint the compositor: avoids layout/paint for rows scrolled out of view. */
+  contain: layout style;
+}
+
+.tn-item:hover {
+  background: var(--tn-hover);
+}
+
+.tn-item.is-selected {
+  background: var(--tn-selected);
+}
+
+.tn-item.is-selected .tn-item__title {
+  color: var(--tn-selected-text);
+  font-weight: 600;
+}
+
+/* Compact colour marker: a 3px strip on the leading edge. */
+.tn-item__strip {
+  position: absolute;
+  top: 0;
+  bottom: 0;
+  left: 0;
+  width: 3px;
+  background: transparent;
+}
+
+.tn-item[data-color="red"] .tn-item__strip { background: var(--tn-c-red); }
+.tn-item[data-color="orange"] .tn-item__strip { background: var(--tn-c-orange); }
+.tn-item[data-color="yellow"] .tn-item__strip { background: var(--tn-c-yellow); }
+.tn-item[data-color="green"] .tn-item__strip { background: var(--tn-c-green); }
+.tn-item[data-color="blue"] .tn-item__strip { background: var(--tn-c-blue); }
+.tn-item[data-color="purple"] .tn-item__strip { background: var(--tn-c-purple); }
+
+.tn-item__title {
+  margin: 0;
+  font-weight: 500;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.tn-item__title.is-placeholder {
+  color: var(--tn-text-muted);
+  font-style: italic;
+  font-weight: 400;
+}
+
+.tn-item__excerpt {
+  margin: 1px 0 0;
+  color: var(--tn-text-muted);
+  font-size: 12px;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.tn-item__meta {
+  margin: 2px 0 0;
+  color: var(--tn-text-muted);
+  font-size: 11px;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.tn-item__format {
+  padding: 0 3px;
+  border: 1px solid var(--tn-border-strong);
+  border-radius: 2px;
+  font-size: 9px;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+}
+
+.tn-empty-list {
+  /* Centred inside the flexible list area; it must never move the footer. */
+  margin: auto;
+  padding: 16px;
+  color: var(--tn-text-muted);
+  line-height: 1.5;
+  text-align: center;
+  overflow-wrap: anywhere;
+}
+
+/* ----------------------------------------------------------------- statusbar */
+
+.tn-statusbar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  flex: 0 0 auto;
+  height: 22px;
+  padding: 0 8px;
+  color: var(--tn-text-muted);
+  background: var(--tn-panel-bg);
+  border-top: 1px solid var(--tn-border);
+  font-size: 11px;
+}
+
+.tn-save-status[data-status="error"] {
+  color: var(--tn-danger);
+}
+
+/* -------------------------------------------------------------------- editor */
+
+.tn-editor-pane {
+  display: flex;
+  flex-direction: column;
+  flex: 1 1 auto;
+  min-width: 0;
+  min-height: 0;
+  background: var(--tn-panel-bg);
+}
+
+.tn-empty-editor {
+  margin: auto;
+  padding: 24px;
+  color: var(--tn-text-muted);
+  text-align: center;
+}
+
+.tn-editor {
+  display: flex;
+  flex-direction: column;
+  flex: 1 1 auto;
+  min-height: 0;
+}
+
+.tn-editor__bar {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  flex: 0 0 auto;
+  /* Controls may wrap onto a second line rather than being clipped. */
+  flex-wrap: wrap;
+  row-gap: 6px;
+  padding: 6px 8px;
+  border-bottom: 1px solid var(--tn-border);
+}
+
+.tn-editor__spacer {
+  flex: 1 1 auto;
+}
+
+.tn-segmented {
+  display: inline-flex;
+  border: 1px solid var(--tn-border-strong);
+  border-radius: 4px;
+  overflow: hidden;
+}
+
+.tn-segmented__btn {
+  height: 24px;
+  padding: 0 9px;
+  color: var(--tn-text-muted);
+  background: var(--tn-panel-bg);
+  border: 0;
+  border-right: 1px solid var(--tn-border-strong);
+  font: inherit;
+  cursor: pointer;
+}
+
+.tn-segmented__btn:last-child {
+  border-right: 0;
+}
+
+.tn-segmented__btn:hover {
+  background: var(--tn-hover);
+}
+
+.tn-segmented__btn.is-active {
+  color: var(--tn-accent-text);
+  background: var(--tn-accent);
+  font-weight: 500;
+}
+
+.tn-segmented__btn:focus-visible {
+  outline: 2px solid var(--tn-focus);
+  outline-offset: -2px;
+}
+
+.tn-textarea {
+  flex: 1 1 auto;
+  width: 100%;
+  min-height: 0;
+  min-width: 0;
+  padding: 12px 14px;
+  color: var(--tn-text);
+  background: var(--tn-panel-bg);
+  border: 0;
+  outline: none;
+  resize: none;
+  font: 13px/1.6 ui-monospace, "Cascadia Mono", Consolas, "SF Mono", monospace;
+  tab-size: 4;
+  /* Plain text wraps, including long unbroken strings and pasted URLs. */
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+  word-break: break-word;
+}
+
+.tn-textarea:focus-visible {
+  outline: 2px solid var(--tn-focus);
+  outline-offset: -2px;
+}
+
+/* ------------------------------------------------------------------- preview */
+
+.tn-preview {
+  flex: 1 1 auto;
+  min-height: 0;
+  min-width: 0;
+  padding: 12px 16px 32px;
+  overflow-y: auto;
+  overflow-x: hidden;
+  /* Markdown output wraps long text and long unbroken strings safely. */
+  overflow-wrap: anywhere;
+  word-break: break-word;
+}
+
+/* Tables must never force horizontal scrolling of the pane. */
+.tn-markdown table {
+  max-width: 100%;
+  overflow-wrap: anywhere;
+}
+
+.tn-markdown > :first-child {
+  margin-top: 0;
+}
+
+.tn-markdown h1,
+.tn-markdown h2,
+.tn-markdown h3,
+.tn-markdown h4,
+.tn-markdown h5,
+.tn-markdown h6 {
+  margin: 1.1em 0 0.4em;
+  line-height: 1.25;
+}
+
+.tn-markdown h1 { font-size: 1.5em; }
+.tn-markdown h2 { font-size: 1.3em; }
+.tn-markdown h3 { font-size: 1.15em; }
+.tn-markdown h4,
+.tn-markdown h5,
+.tn-markdown h6 { font-size: 1em; }
+
+.tn-markdown p,
+.tn-markdown ul,
+.tn-markdown ol,
+.tn-markdown blockquote,
+.tn-markdown pre,
+.tn-markdown table {
+  margin: 0.6em 0;
+}
+
+.tn-markdown ul,
+.tn-markdown ol {
+  padding-left: 1.6em;
+}
+
+.tn-markdown blockquote {
+  padding: 0.1em 0.9em;
+  color: var(--tn-text-muted);
+  border-left: 3px solid var(--tn-border-strong);
+}
+
+.tn-markdown code {
+  padding: 0.1em 0.35em;
+  background: var(--tn-code-bg);
+  border-radius: 3px;
+  font: 12px/1.5 ui-monospace, "Cascadia Mono", Consolas, "SF Mono", monospace;
+}
+
+.tn-markdown pre {
+  padding: 9px 11px;
+  background: var(--tn-code-bg);
+  border: 1px solid var(--tn-border);
+  border-radius: 4px;
+  /* Soft-wrap long lines rather than scrolling the whole pane sideways. This is
+     what keeps a long URL or minified line readable at a narrow width. */
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+  overflow-x: auto;
+}
+
+.tn-markdown pre code {
+  padding: 0;
+  background: none;
+}
+
+.tn-markdown a {
+  color: var(--tn-accent);
+}
+
+.tn-markdown hr {
+  border: 0;
+  border-top: 1px solid var(--tn-border);
+}
+
+.tn-markdown table {
+  border-collapse: collapse;
+}
+
+.tn-markdown th,
+.tn-markdown td {
+  padding: 3px 7px;
+  border: 1px solid var(--tn-border);
+}
+
+.tn-markdown img {
+  max-width: 100%;
+}
+
+/* ==========================================================================
+ * Responsive layout
+ *
+ * The page itself never scrolls horizontally: `.tn-main` clips, and each pane
+ * manages its own overflow. Breakpoints are chosen from the layout's own needs
+ * rather than a framework convention:
+ *
+ *   >= 1040px  two panes, list up to 420px
+ *   780-1040px two panes, list narrowed, toolbars wrap
+ *   < 780px    single pane: list *or* editor, with a back button
+ *
+ * 780px is where the editor pane would fall below ~480px of usable width (the
+ * point at which the editor bar's controls start competing with the text), and
+ * 1040px is where the list reaches its maximum sensible width.
+ * ========================================================================== */
+
+/* ---- Medium: keep two panes, tighten the list, let bars wrap -------------- */
+
+@media (max-width: 1040px) {
+  .tn-list-pane {
+    width: 260px;
+    min-width: 176px;
+    max-width: 40%;
+  }
+
+  .tn-select {
+    max-width: 150px;
+  }
+}
+
+@media (max-width: 900px) {
+  .tn-list-pane {
+    width: 232px;
+    min-width: 160px;
+    max-width: 42%;
+  }
+
+  /* Reduce fixed width pressure from control labels; the icons and the
+     `title`/`aria-label` attributes keep every control identifiable. */
+  .tn-btn span:not(.tn-icon) {
+    display: none;
+  }
+
+  .tn-btn {
+    padding: 0 8px;
+  }
+
+  .tn-select {
+    max-width: 132px;
+  }
+
+  .tn-editor__bar {
+    gap: 8px;
+  }
+}
+
+/* ---- Narrow: single pane, list *or* editor -------------------------------- */
+
+@media (max-width: 780px) {
+  .tn-main {
+    position: relative;
+  }
+
+  .tn-list-pane {
+    /* Both panes occupy the same slot; `data-pane` decides which is shown. */
+    flex: 1 1 auto;
+    width: auto;
+    min-width: 0;
+    max-width: none;
+    border-right: 0;
+  }
+
+  .tn-editor-pane {
+    flex: 1 1 auto;
+    min-width: 0;
+  }
+
+  .tn-main[data-pane="list"] .tn-editor-pane {
+    display: none;
+  }
+
+  .tn-main[data-pane="editor"] .tn-list-pane {
+    display: none;
+  }
+
+  /* The way back to the list only exists in this layout. */
+  .tn-btn--back {
+    display: inline-flex;
+  }
+
+  /* In single-pane mode the colour swatches and the delete button must stay
+     reachable, so the bar is allowed to wrap onto more lines. */
+  .tn-editor__bar {
+    gap: 6px;
+    row-gap: 6px;
+  }
+
+  .tn-colors--editor {
+    flex-wrap: wrap;
+  }
+
+  .tn-search {
+    max-width: none;
+  }
+}
+
+/* Very narrow: the toolbar becomes two rows and controls stop competing. */
+@media (max-width: 520px) {
+  .tn-toolbar {
+    gap: 6px;
+  }
+
+  .tn-search {
+    flex-basis: 100%;
+    max-width: none;
+  }
+
+  .tn-colors {
+    flex-wrap: wrap;
+  }
+
+  .tn-list-pane {
+    padding: 0;
+  }
+}

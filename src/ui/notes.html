@@ -1,0 +1,133 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>ThunderNotes</title>
+    <link rel="stylesheet" href="ui/notes.css" />
+  </head>
+  <body>
+    <!-- Top bar: search, colour filter, sort, new note -->
+    <header class="tn-toolbar">
+      <div class="tn-search">
+        <span class="tn-icon tn-icon--search tn-search__icon" aria-hidden="true"></span>
+        <input
+          id="tn-search"
+          class="tn-search__input"
+          type="search"
+          autocomplete="off"
+          spellcheck="false"
+          data-i18n-placeholder="searchPlaceholder"
+          data-i18n-aria-label="searchLabel"
+        />
+        <button id="tn-search-clear" class="tn-icon-btn tn-search__clear" type="button" hidden
+          data-i18n-title="clearSearch" data-i18n-aria-label="clearSearch">
+          <span class="tn-icon tn-icon--close" aria-hidden="true"></span>
+        </button>
+      </div>
+
+      <div class="tn-colors" id="tn-color-filter" role="group" data-i18n-aria-label="colorFilterLabel">
+        <button class="tn-color-btn is-active" type="button" data-color="all"></button>
+        <button class="tn-color-btn" type="button" data-color="none"></button>
+        <button class="tn-color-btn" type="button" data-color="red"></button>
+        <button class="tn-color-btn" type="button" data-color="orange"></button>
+        <button class="tn-color-btn" type="button" data-color="yellow"></button>
+        <button class="tn-color-btn" type="button" data-color="green"></button>
+        <button class="tn-color-btn" type="button" data-color="blue"></button>
+        <button class="tn-color-btn" type="button" data-color="purple"></button>
+      </div>
+
+      <select id="tn-sort" class="tn-select" data-i18n-aria-label="sortLabel"></select>
+
+      <button id="tn-new" class="tn-btn tn-btn--primary" type="button"
+        data-i18n-title="newNoteTooltip">
+        <span class="tn-icon tn-icon--add" aria-hidden="true"></span>
+        <span data-i18n="newNote"></span>
+      </button>
+    </header>
+
+    <div id="tn-banner" class="tn-banner" hidden>
+      <span id="tn-banner-text"></span>
+      <button id="tn-banner-close" class="tn-icon-btn" type="button"
+        data-i18n-title="dismiss" data-i18n-aria-label="dismiss">
+        <span class="tn-icon tn-icon--close" aria-hidden="true"></span>
+      </button>
+    </div>
+
+    <main class="tn-main" id="tn-main" data-pane="list">
+      <!-- Left: the note list -->
+      <section class="tn-list-pane">
+        <!--
+          The list area flexes and scrolls; the status bar is its sibling so it
+          always stays pinned to the bottom of the pane, whatever the list
+          contains (nothing, no matches, or thousands of rows).
+        -->
+        <div class="tn-list-area">
+          <ul id="tn-list" class="tn-list" role="listbox" tabindex="0"></ul>
+          <p id="tn-list-empty" class="tn-empty-list" hidden></p>
+        </div>
+        <footer class="tn-statusbar">
+          <span id="tn-count" class="tn-count"></span>
+          <span id="tn-save-status" class="tn-save-status"></span>
+        </footer>
+      </section>
+
+      <!-- Right: editor -->
+      <section class="tn-editor-pane">
+        <p id="tn-editor-empty" class="tn-empty-editor" data-i18n="emptySelection"></p>
+
+        <div id="tn-editor" class="tn-editor" hidden>
+          <div class="tn-editor__bar">
+            <!--
+              Only shown in the narrow single-pane layout, where the editor
+              replaces the list. Hidden by CSS above the breakpoint.
+            -->
+            <button id="tn-back" class="tn-btn tn-btn--back" type="button"
+              data-i18n-title="backToList" data-i18n-aria-label="backToList">
+              <span class="tn-icon tn-icon--back" aria-hidden="true"></span>
+            </button>
+            <div class="tn-segmented" id="tn-format" role="group" data-i18n-aria-label="formatLabel">
+              <button class="tn-segmented__btn is-active" type="button" data-format="plain"
+                data-i18n="formatPlain"></button>
+              <button class="tn-segmented__btn" type="button" data-format="markdown"
+                data-i18n="formatMarkdown"></button>
+            </div>
+
+            <div class="tn-colors tn-colors--editor" id="tn-note-colors" role="group"
+              data-i18n-aria-label="noteColorLabel">
+              <button class="tn-color-btn tn-color-btn--sm" type="button" data-color="none"></button>
+              <button class="tn-color-btn tn-color-btn--sm" type="button" data-color="red"></button>
+              <button class="tn-color-btn tn-color-btn--sm" type="button" data-color="orange"></button>
+              <button class="tn-color-btn tn-color-btn--sm" type="button" data-color="yellow"></button>
+              <button class="tn-color-btn tn-color-btn--sm" type="button" data-color="green"></button>
+              <button class="tn-color-btn tn-color-btn--sm" type="button" data-color="blue"></button>
+              <button class="tn-color-btn tn-color-btn--sm" type="button" data-color="purple"></button>
+            </div>
+
+            <div class="tn-editor__spacer"></div>
+
+            <div class="tn-segmented" id="tn-md-mode" role="group" hidden>
+              <button class="tn-segmented__btn is-active" type="button" data-mode="edit"
+                data-i18n="modeEdit"></button>
+              <button class="tn-segmented__btn" type="button" data-mode="preview"
+                data-i18n="modePreview"></button>
+            </div>
+
+            <button id="tn-delete" class="tn-btn tn-btn--danger" type="button"
+              data-i18n-title="deleteTooltip">
+              <span class="tn-icon tn-icon--delete" aria-hidden="true"></span>
+              <span data-i18n="delete"></span>
+            </button>
+          </div>
+
+          <textarea id="tn-textarea" class="tn-textarea" spellcheck="true"
+            data-i18n-placeholder="editorPlaceholder" data-i18n-aria-label="editorLabel"></textarea>
+
+          <div id="tn-preview" class="tn-preview tn-markdown" hidden></div>
+        </div>
+      </section>
+    </main>
+
+    <script type="module" src="ui/notes.js"></script>
+  </body>
+</html>
