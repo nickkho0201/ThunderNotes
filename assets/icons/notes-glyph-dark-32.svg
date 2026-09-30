@@ -1,6 +1,6 @@
 <svg xmlns="http://www.w3.org/2000/svg" width="32" height="32" viewBox="0 0 32 32" fill="none">
   <!--
-    DARK glyph at 32px, for LIGHT themes. Supplied as `themeIcons[].dark`.
+    DARK glyph at 32px, for LIGHT themes. Selected through `defaultIcons`.
 
     Exactly notes-glyph-dark-16.svg at 2x (same command structure, doubled
     coordinates and stroke widths). A test compares the normalised streams and

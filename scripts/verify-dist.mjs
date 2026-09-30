@@ -1,8 +1,8 @@
 /**
- * Verifies the PACKAGED extension, not the sources.
+ * Verifies the built `dist/` extension artifact, not the sources or an XPI.
  *
- * Nothing here needs Thunderbird: it unpacks the built `dist/` (or an XPI) and
- * checks the things that actually break an install or a first run — a manifest
+ * Nothing here needs Thunderbird: it inspects the built `dist/` tree and checks
+ * the things that actually break an install or a first run — a manifest
  * that references a missing file, a localized placeholder with no catalogue
  * entry, a page that loads a bundle which was never emitted, an icon that does
  * not resolve from where the CSS expects it, an icon that could never adapt to
@@ -253,17 +253,16 @@ if (pagePath) {
     }
   }
 
-  // The space button is driven by `themeIcons` alone, one 16px and one 32px set,
-  // each carrying both a dark and a light glyph.
+  // The space button uses one concrete `defaultIcons` set at a time, with 16px
+  // and 32px variants selected from the matching dark or light glyph pair.
   //
   // Every glyph must be SELF-CONTAINED with a literal colour: manual testing in
   // Thunderbird 156 showed the context paint mechanism renders nothing for a
   // custom space button. The two glyphs must also genuinely differ, or the pair
   // could never change.
   //
-  // Note the field mapping is the OBSERVED runtime behaviour, which contradicts
-  // the documented wording — see src/background/space.ts. `dark` is what renders
-  // in dark themes, so it must be the light artwork.
+  // `inDarkTheme` and `inLightTheme` name the effective theme in which each
+  // explicitly selected glyph is used; see src/background/space.ts.
   const glyphPairs = [
     {
       size: 16,

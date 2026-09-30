@@ -1,6 +1,6 @@
 <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 16 16" fill="none">
   <!--
-    LIGHT glyph, for DARK themes. Supplied as `themeIcons[].light`.
+    LIGHT glyph, for DARK themes. Selected through `defaultIcons`.
 
     The same artwork as notes-glyph-dark-16.svg with a light colour, so the two
     are a matched pair. Self-contained (no context paint keywords): a manual test

@@ -1,6 +1,6 @@
 <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 16 16" fill="none">
   <!--
-    DARK glyph, for LIGHT themes. Supplied as `themeIcons[].dark`.
+    DARK glyph, for LIGHT themes. Selected through `defaultIcons`.
 
     Deliberately self-contained: every paint value is a literal colour, and there
     are no context paint keywords. A manual test in Thunderbird 156 showed that

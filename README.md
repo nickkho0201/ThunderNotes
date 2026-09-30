@@ -17,7 +17,9 @@ it again later, without leaving Thunderbird.
 
 ## Current features
 
-Everything below is implemented, built into the shipped XPI and covered by tests.
+Everything below is implemented in the current source and included in generated
+`dist/` and XPI build artifacts; automated coverage and runtime gaps are described
+in [Testing](#testing).
 
 **Space integration**
 - Registers its own **ThunderNotes** space and Spaces-toolbar button through the
@@ -28,8 +30,8 @@ Everything below is implemented, built into the shipped XPI and covered by tests
 **Notes**
 - Create, edit, and delete notes; the editor is focused automatically so you can
   type immediately after pressing "New note".
-- **Autosave** with a 400 ms debounce, plus a forced write when you switch notes,
-  hide the page, or close it. No manual saving, ever.
+- **Autosave** with a 400 ms debounce, plus an immediate best-effort flush when
+  you switch notes, hide the page, or close it. No manual saving, ever.
 - Automatic preview text derived from the content — a separate title field is
   neither required nor stored. Markdown syntax is stripped for the preview, so the
   list never shows a wall of `#`, `**` or `[]()`.
@@ -144,37 +146,37 @@ You need Node.js 20 or newer.
 
 ```bash
 # 1. Install dependencies
-npm install
+pnpm install
 
 # 2. Type-check (strict TypeScript, no emit)
-npm run typecheck
+pnpm run typecheck
 
 # 3. Build the unpacked extension into dist/ and run the test suites
-npm test
+pnpm test
 
 # 4. Verify the built artifact (manifest, locales, assets, no network calls)
-npm run verify
+pnpm run verify
 
 # 5. Build dist/ and produce artifacts/thundernotes-<version>.xpi
-npm run xpi
+pnpm run xpi
 
 # Everything at once: typecheck -> build -> test -> package -> verify
-npm run package
+pnpm run package
 ```
 
-`npm run clean` removes `dist/`, `build/`, `artifacts/` and the generated locale
+`pnpm run clean` removes `dist/`, `build/`, `artifacts/` and the generated locale
 module; every other script regenerates whatever it needs, so a clean tree builds
 without extra steps.
 
 ### Trying it without packaging
 
-1. Run `npm run build`.
+1. Run `pnpm run build`.
 2. In Thunderbird open **Tools → Developer Tools → Debug Add-ons**.
 3. Click **Load Temporary Add-on…** and select `dist/manifest.json`.
 4. The **Notes** button appears in the Spaces toolbar.
 
 A temporary add-on is removed when Thunderbird closes, which makes it the right
-way to iterate: change the sources, run `npm run build`, then press **Reload** in
+way to iterate: change the sources, run `pnpm run build`, then press **Reload** in
 the Debug Add-ons page.
 
 > Note: since the space is registered at extension startup, you may need to press
@@ -218,9 +220,8 @@ to install.
 3. Click the gear icon → **Install Add-on From File…**
 4. Select the `.xpi` file and confirm.
 
-For a permanent installation from an unsigned XPI, Thunderbird requires
-`xpinstall.signatures.required` to be `false` in the Config Editor
-(**Settings → General → Config Editor**) or the add-on to be signed.
+The manifest declares a fixed Thunderbird extension ID, so the packaged XPI can
+be installed persistently through the Add-ons Manager.
 
 **Temporarily, without packaging:** follow
 [Trying it without packaging](#trying-it-without-packaging) above.
@@ -242,6 +243,9 @@ anywhere.**
 - The database carries an explicit schema version, and the code has a real
   migration path (`src/storage/migrations.ts`). A future data-model change upgrades
   existing records instead of discarding them.
+  Adding a persistent schema migration requires updating `CURRENT_SCHEMA_VERSION`
+  and IndexedDB `DB_VERSION` together, plus adding the migration step, because
+  migrations run from `onupgradeneeded`.
 - Unreadable or partially corrupt records are skipped with a console warning
   rather than taking the whole database down.
 
@@ -249,7 +253,7 @@ What ThunderNotes does **not** do:
 
 - no server, no cloud, no account, no login;
 - no telemetry, analytics or crash reporting;
-- no network requests at all — `npm run verify` enforces this by scanning the
+- no network requests at all — `pnpm run verify` enforces this by scanning the
   built bundles for network entry points and remote assets;
 - no third-party code fetched at runtime (the single dependency, `marked`, is
   bundled into the XPI).
@@ -332,7 +336,7 @@ URLs, control-character-obfuscated schemes, and unknown tags.
 
 ## Testing
 
-`npm test` builds the extension and the test bundles with esbuild, then runs
+`pnpm test` builds the extension and the test bundles with esbuild, then runs
 Node's built-in test runner. There are **295 tests** across 11 files:
 
 | Suite | Covers |
@@ -349,7 +353,7 @@ Node's built-in test runner. There are **295 tests** across 11 files:
 | `i18n` | `t()` resolution order and fallbacks, positional and named placeholder substitution (including placeholders the platform leaves unexpanded), not substituting a wrong value, catalogue integrity, locale-driven date formatting. |
 | `ui` | Loads the **real** `src/ui/notes.html` and asserts every element id the page script looks up exists and every `data-i18n*` attribute resolves to a real key. Drives the real editor, list and store together against a linkedom DOM: caret preservation, format/colour switching through actual clicks, live list preview while typing, list re-ordering on sort change, the row timestamp following the sort field, the footer counter in every list situation, the panes' structural invariants, responsive CSS invariants, virtualized windowing, roving tabindex, empty state, and sanitized preview. Also checks the primary button's state colours: every state has an explicit foreground/background pair meeting a contrast floor, hover cannot wash out the label, the disabled state is distinct from hover and carries a non-interactive cursor, and no `filter` is applied. |
 
-`npm run verify` then validates the **built artifact**:
+`pnpm run verify` then validates the **built artifact**:
 
 - manifest correctness, `__MSG_*__` resolution and locale completeness;
 - that the manifest version matches `package.json`;
@@ -373,8 +377,9 @@ colour-filter buttons in step with the applied filter.
 The tests cannot launch Thunderbird, so the following were verified by
 construction, source review and manual testing rather than by execution:
 
-- the appearance and placement of the Spaces-toolbar button, and that Thunderbird
-  actually paints it with the context properties (see
+- the appearance and placement of the Spaces-toolbar button, whether Thunderbird
+  displays the selected `defaultIcons` glyph correctly in Light and Dark themes,
+  and live switching across built-in and third-party themes (see
   [Space icon and themes](#space-icon-and-themes));
 - the real rendered geometry of the responsive breakpoints (the tests assert the
   CSS contract — breakpoints, `data-pane` switching, wrapping rules — not pixels);
@@ -438,9 +443,6 @@ These are real and deliberate, not oversights:
 12. **`revision` is maintained but not yet used.** It is incremented on every
     change so a future sync layer can do conflict resolution without a migration.
 13. **Markdown raw HTML is unsupported**, again by design.
-14. **The manifest is not signed.** Installing a permanent copy of the XPI
-    requires `xpinstall.signatures.required = false`.
-
 ---
 
 ## Space icon and themes

@@ -2,17 +2,17 @@
  * Inspection of the SVG icon assets.
  *
  * Two kinds of asset, with different rules, plus the cross-checks that make the
- * `themeIcons` pair trustworthy:
+ * explicitly selected `defaultIcons` glyphs trustworthy:
  *
- *  - **Theme glyphs** (`notes-glyph-*.svg`) are handed to Thunderbird through
- *    `themeIcons`. `ThemeIcons` is `{dark, light, size}`: `dark` is "the dark icon
- *    to use for light themes" and `light` is "a light icon to use for dark
- *    themes". They must therefore be self-contained with a literal colour — a
- *    manual test in Thunderbird 156 showed that the context paint mechanism does
- *    not reach a custom space button, so any context keyword renders nothing.
+ *  - **Space glyphs** (`notes-glyph-*.svg`) are selected by the extension after
+ *    it resolves the effective theme and are handed to Thunderbird through one
+ *    concrete `defaultIcons` set. `themeIcons` is explicitly cleared to `null`.
+ *    The glyphs must therefore be self-contained with a literal colour — a manual
+ *    test in Thunderbird 156 showed that the context paint mechanism does not
+ *    reach a custom space button, so any context keyword renders nothing.
  *  - **Manifest icons** are shown by the add-ons manager, where there is no theme
- *    to match. They are also self-contained, and are reused as the button's
- *    `defaultIcons` fallback.
+ *    to match. They are separate self-contained artwork and are not reused as the
+ *    Space button glyphs.
  *
  * Beyond "no context keywords", the light and dark glyphs must actually differ in
  * colour (or the pair is pointless), and the 16px and 32px file at each colour

@@ -1,6 +1,6 @@
 <svg xmlns="http://www.w3.org/2000/svg" width="32" height="32" viewBox="0 0 32 32" fill="none">
   <!--
-    LIGHT glyph at 32px, for DARK themes. Supplied as `themeIcons[].light`.
+    LIGHT glyph at 32px, for DARK themes. Selected through `defaultIcons`.
 
     Exactly notes-glyph-light-16.svg at 2x, matching notes-glyph-dark-32.svg.
     See notes-glyph-dark-16.svg for why the artwork is self-contained.

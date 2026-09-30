@@ -146,9 +146,9 @@ async function main(): Promise<void> {
   /**
    * Ask the background to re-apply the space button.
    *
-   * Thunderbird picks the icon from the button's `themeIcons`; re-applying makes
-   * sure the current array is in effect (which also replaces the icon sets an
-   * older build registered). Costs one message.
+   * The background resolves the effective theme and re-applies one concrete
+   * `defaultIcons` glyph set while clearing `themeIcons`. This also replaces icon
+   * properties an older build registered. Costs one message.
    */
   const notifyThemeToBackground = (): void => {
     void getBrowser()?.runtime.sendMessage({ type: "thundernotes:theme-changed" }).catch(() => {
