@@ -350,7 +350,7 @@ URLs, control-character-obfuscated schemes, and unknown tags.
 ## Testing
 
 `pnpm test` builds the extension and the test bundles with esbuild, then runs
-Node's built-in test runner. There are **301 tests** across 11 files:
+Node's built-in test runner. There are **353 tests** across 19 files:
 
 | Suite | Covers |
 | --- | --- |
@@ -361,6 +361,10 @@ Node's built-in test runner. There are **301 tests** across 11 files:
 | `migrations` | Migration chain integrity, upgrade from version 0, dropping unreadable records, forward compatibility. |
 | `store` | Autosave debounce/coalescing, flush on note switch, no-op suppression, failure handling and retry, selection after delete, cancelling a queued write for a deleted note, filter/sort recomputation, and initial-selection restore (valid id / deleted id / nonsense id / id hidden by the restored filter / empty list). |
 | `preferences` | UI preference validation (unknown sort/colour/format, empty ids, non-objects), round-tripping through a fake `storage.local`, that the search query is not part of the stored shape, corrupt-record repair, and graceful degradation when storage throws or is absent. |
+| `portable-codec`, `portable-file`, `portable-errors` | Canonical JSON backup round-trips, strict external validation, transport limits, structured/localized errors, and rejection of malformed or unsupported data. |
+| `portable-plan`, `portable-controller` | Merge conflict policies, deterministic planning, 10 000-note scaling, write barriers, authoritative re-planning, stale-confirmation rejection, and collision-free Keep both materialization. |
+| `repository-replace`, `indexeddb-replace` | Atomic whole-dataset replacement in memory and one IndexedDB transaction, including rollback after an injected write failure. |
+| `data-dialog` | Export of current in-memory edits, import summaries, Restore safety steps, source changes, and TOCTOU-driven reconfirmation. |
 | `space` | The Space button contract: the name matches Thunderbird's `^[a-zA-Z0-9_]+$` rule, the page URL is relative, `themeIcons` is explicitly cleared to `null`, and `defaultIcons` is selected **from the resolved theme** — dark glyph in the light theme, light glyph in the dark theme. Regression coverage includes the page-to-worker mode message, a DOM-less worker falling back to Light while the page resolved Dark, an in-flight startup race, and worker restart from the stored resolved mode. Also: only relative paths, exactly the 16/32 px sizes, every declared file exists, and the artwork is self-contained with no context paint keyword. |
 | `theme` | Colour parsing (`#rgb`, `#rgba`, `#rrggbb`, `rgb()`, `rgba()`, arrays), luminance, `color_scheme` detection, colour-based fallback, media-query fallback. |
 | `i18n` | `t()` resolution order and fallbacks, positional and named placeholder substitution (including placeholders the platform leaves unexpanded), not substituting a wrong value, catalogue integrity, locale-driven date formatting. |

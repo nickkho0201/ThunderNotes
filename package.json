@@ -1,6 +1,6 @@
 {
   "name": "thundernotes",
-  "version": "0.1.5",
+  "version": "0.2.0",
   "private": true,
   "description": "ThunderNotes - a fast local notes manager living inside a Thunderbird Space.",
   "license": "MIT",
