@@ -259,6 +259,74 @@
     "message": "The backup cannot be read: $1",
     "description": "Strict backup validation error."
   },
+  "portableErrorEmptyFile": {
+    "message": "The selected file is empty.",
+    "description": "Portable Data validation error."
+  },
+  "portableErrorFileReadFailed": {
+    "message": "The selected file could not be read.",
+    "description": "Portable Data file transport error."
+  },
+  "portableErrorFileTooLarge": {
+    "message": "The backup is $1 bytes; the maximum is $2 bytes.",
+    "description": "Portable Data size error. $1 = actual bytes, $2 = maximum bytes."
+  },
+  "portableErrorInvalidUtf8": {
+    "message": "The selected file is not valid UTF-8.",
+    "description": "Portable Data decoding error."
+  },
+  "portableErrorMalformedJson": {
+    "message": "The selected file is not valid JSON.",
+    "description": "Portable Data parsing error."
+  },
+  "portableErrorWrongFormat": {
+    "message": "The selected file is not a ThunderNotes backup.",
+    "description": "Portable Data format identifier error."
+  },
+  "portableErrorUnsupportedFormatVersion": {
+    "message": "Backup format version $1 is newer than supported version $2.",
+    "description": "Unsupported Portable Data version. $1 = actual, $2 = supported."
+  },
+  "portableErrorUnsupportedNoteSchema": {
+    "message": "Note schema version $1 is not supported; this build supports version $2.",
+    "description": "Unsupported Note schema version. $1 = actual, $2 = supported."
+  },
+  "portableErrorMissingField": {
+    "message": "Required field $1 is missing.",
+    "description": "Portable Data missing-field error. $1 = structural field path."
+  },
+  "portableErrorUnknownField": {
+    "message": "Field $1 is not supported.",
+    "description": "Portable Data unknown-field error. $1 = structural field path."
+  },
+  "portableErrorInvalidShape": {
+    "message": "The structure at $1 is invalid.",
+    "description": "Portable Data structural error. $1 = structural path."
+  },
+  "portableErrorInvalidValue": {
+    "message": "Field $1 contains an invalid value.",
+    "description": "Portable Data field value error. $1 = structural field path."
+  },
+  "portableErrorDuplicateNoteId": {
+    "message": "The backup contains duplicate note IDs.",
+    "description": "Portable Data duplicate identity error."
+  },
+  "portableErrorTooManyNotes": {
+    "message": "The backup contains $1 notes; the maximum is $2.",
+    "description": "Portable Data note-count error. $1 = actual, $2 = maximum."
+  },
+  "portableErrorMaxDepth": {
+    "message": "Backup metadata exceeds the maximum nesting depth of $1.",
+    "description": "Portable Data nesting-depth error. $1 = maximum depth."
+  },
+  "portableErrorInvalidMetadata": {
+    "message": "Metadata at $1 is not valid JSON data.",
+    "description": "Portable Data metadata error. $1 = metadata path."
+  },
+  "portableErrorUnexpected": {
+    "message": "an internal error occurred.",
+    "description": "Generic detail for an unexpected Portable Data failure."
+  },
   "dataExportedAt": {
     "message": "Exported",
     "description": "Backup metadata label."

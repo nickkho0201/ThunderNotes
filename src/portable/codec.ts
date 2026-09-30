@@ -14,6 +14,8 @@ import {
   PORTABLE_DATA_FORMAT,
   PORTABLE_DATA_VERSION,
   PortableDataError,
+  type PortableDataErrorCode,
+  type PortableDataErrorParameters,
   type JsonObject,
   type JsonValue,
   type PortableDataV1,
@@ -32,8 +34,12 @@ const NOTE_KEYS = [
   "schemaVersion",
 ];
 
-function fail(code: string, message: string): never {
-  throw new PortableDataError(code, message);
+function fail(
+  code: PortableDataErrorCode,
+  message: string,
+  parameters: PortableDataErrorParameters = {},
+): never {
+  throw new PortableDataError(code, message, parameters);
 }
 
 function isRecord(value: unknown): value is Record<string, unknown> {
@@ -43,7 +49,7 @@ function isRecord(value: unknown): value is Record<string, unknown> {
 }
 
 function assertRecord(value: unknown, path: string): asserts value is Record<string, unknown> {
-  if (!isRecord(value)) fail("invalid-shape", `${path} must be an object.`);
+  if (!isRecord(value)) fail("invalid-shape", `${path} must be an object.`, { path });
 }
 
 function assertExactKeys(
@@ -54,40 +60,48 @@ function assertExactKeys(
 ): void {
   const allowed = new Set([...required, ...optional]);
   for (const key of Object.keys(value)) {
-    if (!allowed.has(key)) fail("unknown-field", `${path}.${key} is not supported.`);
+    if (!allowed.has(key)) {
+      const field = `${path}.${key}`;
+      fail("unknown-field", `${field} is not supported.`, { field });
+    }
   }
   for (const key of required) {
     if (!Object.prototype.hasOwnProperty.call(value, key)) {
-      fail("missing-field", `${path}.${key} is required.`);
+      const field = `${path}.${key}`;
+      fail("missing-field", `${field} is required.`, { field });
     }
   }
 }
 
 function assertNonEmptyString(value: unknown, path: string): asserts value is string {
   if (typeof value !== "string" || value.length === 0) {
-    fail("invalid-value", `${path} must be a non-empty string.`);
+    fail("invalid-value", `${path} must be a non-empty string.`, { field: path });
   }
 }
 
 function assertString(value: unknown, path: string): asserts value is string {
-  if (typeof value !== "string") fail("invalid-value", `${path} must be a string.`);
+  if (typeof value !== "string") {
+    fail("invalid-value", `${path} must be a string.`, { field: path });
+  }
 }
 
 function assertSafeInteger(value: unknown, path: string, minimum = 0): asserts value is number {
   if (!Number.isSafeInteger(value) || (value as number) < minimum) {
-    fail("invalid-value", `${path} must be a safe integer greater than or equal to ${minimum}.`);
+    fail("invalid-value", `${path} must be a safe integer greater than or equal to ${minimum}.`, {
+      field: path,
+    });
   }
 }
 
 function assertFormat(value: unknown, path: string): asserts value is NoteFormat {
   if (!isNoteFormat(value)) {
-    fail("invalid-value", `${path} is not a supported note format.`);
+    fail("invalid-value", `${path} is not a supported note format.`, { field: path });
   }
 }
 
 function assertColor(value: unknown, path: string): asserts value is NoteColor | null {
   if (value !== null && !NOTE_COLORS.includes(value as Exclude<NoteColor, null>)) {
-    fail("invalid-value", `${path} is not a supported note color.`);
+    fail("invalid-value", `${path} is not a supported note color.`, { field: path });
   }
 }
 
@@ -102,12 +116,14 @@ function defineJsonProperty(target: JsonObject, key: string, value: JsonValue): 
 
 function copyJsonValue(value: unknown, path: string, depth: number): JsonValue {
   if (depth > MAX_PORTABLE_JSON_DEPTH) {
-    fail("max-depth", `${path} exceeds the maximum JSON nesting depth.`);
+    fail("max-depth", `${path} exceeds the maximum JSON nesting depth.`, {
+      maximum: MAX_PORTABLE_JSON_DEPTH,
+    });
   }
   if (value === null || typeof value === "string" || typeof value === "boolean") return value;
   if (typeof value === "number") {
     if (!Number.isFinite(value) || (Number.isInteger(value) && !Number.isSafeInteger(value))) {
-      fail("invalid-meta", `${path} contains an unsupported number.`);
+      fail("invalid-meta", `${path} contains an unsupported number.`, { path });
     }
     return value;
   }
@@ -124,21 +140,27 @@ function copyJsonValue(value: unknown, path: string, depth: number): JsonValue {
         (_, index) => !Object.prototype.hasOwnProperty.call(value, index),
       ).some(Boolean)
     ) {
-      fail("invalid-meta", `${path} must be a dense JSON array without extra properties.`);
+      fail("invalid-meta", `${path} must be a dense JSON array without extra properties.`, {
+        path,
+      });
     }
     return value.map((entry, index) => copyJsonValue(entry, `${path}[${index}]`, depth + 1));
   }
-  if (!isRecord(value)) fail("invalid-meta", `${path} must contain JSON-compatible values only.`);
+  if (!isRecord(value)) {
+    fail("invalid-meta", `${path} must contain JSON-compatible values only.`, { path });
+  }
 
   const result: JsonObject = {};
   const keys = Reflect.ownKeys(value);
   if (keys.some((key) => typeof key !== "string")) {
-    fail("invalid-meta", `${path} cannot contain symbol keys.`);
+    fail("invalid-meta", `${path} cannot contain symbol keys.`, { path });
   }
   for (const key of (keys as string[]).sort()) {
     const descriptor = Object.getOwnPropertyDescriptor(value, key);
     if (!descriptor?.enumerable || !("value" in descriptor)) {
-      fail("invalid-meta", `${path}.${key} must be an enumerable JSON data property.`);
+      fail("invalid-meta", `${path}.${key} must be an enumerable JSON data property.`, {
+        path: `${path}.${key}`,
+      });
     }
     defineJsonProperty(
       result,
@@ -150,7 +172,7 @@ function copyJsonValue(value: unknown, path: string, depth: number): JsonValue {
 }
 
 function copyMeta(value: unknown, path: string): JsonObject {
-  if (!isRecord(value)) fail("invalid-meta", `${path} must be a JSON object.`);
+  if (!isRecord(value)) fail("invalid-meta", `${path} must be a JSON object.`, { path });
   return copyJsonValue(value, path, 1) as JsonObject;
 }
 
@@ -158,7 +180,7 @@ function assertIsoTimestamp(value: unknown, path: string): asserts value is stri
   assertNonEmptyString(value, path);
   const parsed = new Date(value);
   if (!Number.isFinite(parsed.getTime()) || parsed.toISOString() !== value) {
-    fail("invalid-value", `${path} must be a canonical UTC ISO timestamp.`);
+    fail("invalid-value", `${path} must be a canonical UTC ISO timestamp.`, { field: path });
   }
 }
 
@@ -201,6 +223,7 @@ function decodePortableNote(value: unknown, index: number): PortableNoteV1 {
     fail(
       "unsupported-note-schema",
       `${path}.schemaVersion ${value.schemaVersion} is not supported.`,
+      { actual: value.schemaVersion, supported: CURRENT_SCHEMA_VERSION },
     );
   }
 
@@ -223,7 +246,9 @@ function decodePortableNote(value: unknown, index: number): PortableNoteV1 {
 function readFormatVersion(value: unknown): number {
   assertRecord(value, "portable");
   if (!Object.prototype.hasOwnProperty.call(value, "formatVersion")) {
-    fail("missing-field", "portable.formatVersion is required.");
+    fail("missing-field", "portable.formatVersion is required.", {
+      field: "portable.formatVersion",
+    });
   }
   assertSafeInteger(value.formatVersion, "portable.formatVersion", 1);
   return value.formatVersion;
@@ -237,13 +262,21 @@ export function decodePortableData(input: unknown): PortableDataV1 {
     fail("wrong-format", "The selected file is not ThunderNotes Portable Data.");
   }
   if (migrated.formatVersion !== PORTABLE_DATA_VERSION) {
-    fail("unsupported-format-version", "The Portable Data version is not supported.");
+    fail("unsupported-format-version", "The Portable Data version is not supported.", {
+      actual: migrated.formatVersion as number,
+      supported: PORTABLE_DATA_VERSION,
+    });
   }
   assertIsoTimestamp(migrated.exportedAt, "portable.exportedAt");
   assertNonEmptyString(migrated.appVersion, "portable.appVersion");
-  if (!Array.isArray(migrated.notes)) fail("invalid-shape", "portable.notes must be an array.");
+  if (!Array.isArray(migrated.notes)) {
+    fail("invalid-shape", "portable.notes must be an array.", { path: "portable.notes" });
+  }
   if (migrated.notes.length > MAX_PORTABLE_NOTES) {
-    fail("too-many-notes", `portable.notes cannot contain more than ${MAX_PORTABLE_NOTES} notes.`);
+    fail("too-many-notes", `portable.notes cannot contain more than ${MAX_PORTABLE_NOTES} notes.`, {
+      actual: migrated.notes.length,
+      maximum: MAX_PORTABLE_NOTES,
+    });
   }
 
   const ids = new Set<string>();
@@ -268,9 +301,12 @@ export function decodePortableText(text: string): PortableDataV1 {
   try {
     parsed = JSON.parse(withoutBom) as unknown;
   } catch (error) {
-    throw new PortableDataError("malformed-json", "The selected file is not valid JSON.", {
-      cause: error,
-    });
+    throw new PortableDataError(
+      "malformed-json",
+      "The selected file is not valid JSON.",
+      {},
+      { cause: error },
+    );
   }
   return decodePortableData(parsed);
 }
@@ -281,9 +317,14 @@ export function encodePortableData(
   exportedAt = new Date(),
 ): string {
   assertNonEmptyString(appVersion, "appVersion");
-  if (!Number.isFinite(exportedAt.getTime())) fail("invalid-value", "exportedAt is invalid.");
+  if (!Number.isFinite(exportedAt.getTime())) {
+    fail("invalid-value", "exportedAt is invalid.", { field: "exportedAt" });
+  }
   if (notes.length > MAX_PORTABLE_NOTES) {
-    fail("too-many-notes", `Cannot export more than ${MAX_PORTABLE_NOTES} notes.`);
+    fail("too-many-notes", `Cannot export more than ${MAX_PORTABLE_NOTES} notes.`, {
+      actual: notes.length,
+      maximum: MAX_PORTABLE_NOTES,
+    });
   }
   const portableNotes = notes
     .map(toPortableNote)
@@ -301,8 +342,12 @@ export function encodePortableData(
     notes: portableNotes,
   };
   const output = `${JSON.stringify(data, null, 2)}\n`;
-  if (new TextEncoder().encode(output).byteLength > MAX_PORTABLE_FILE_BYTES) {
-    fail("file-too-large", `The backup exceeds ${MAX_PORTABLE_FILE_BYTES} bytes.`);
+  const outputBytes = new TextEncoder().encode(output).byteLength;
+  if (outputBytes > MAX_PORTABLE_FILE_BYTES) {
+    fail("file-too-large", `The backup exceeds ${MAX_PORTABLE_FILE_BYTES} bytes.`, {
+      actual: outputBytes,
+      maximum: MAX_PORTABLE_FILE_BYTES,
+    });
   }
   return output;
 }

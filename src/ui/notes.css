@@ -931,16 +931,25 @@ body {
 }
 
 .tn-data-steps li {
+  display: flex;
+  align-items: flex-start;
+  flex-direction: column;
+  gap: 5px;
   padding-inline-start: 2px;
 }
 
 .tn-data-steps strong {
   display: block;
-  margin-bottom: 5px;
 }
 
-.tn-data-steps .tn-data-status {
-  margin-bottom: 5px;
+.tn-data-steps .tn-data-status,
+.tn-data-steps .tn-data-check {
+  align-self: stretch;
+  margin: 0;
+}
+
+.tn-data-steps .tn-data-status:empty {
+  display: none;
 }
 
 .tn-file {

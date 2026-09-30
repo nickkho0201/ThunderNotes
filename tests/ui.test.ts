@@ -676,6 +676,16 @@ describe("ui: CSS invariants", () => {
     // The row must fit title + excerpt + date (see .tn-item padding/metrics).
     assert.ok(cssHeight >= 60, `row height ${cssHeight}px is too small for three text lines`);
   });
+
+  it("uses one compact vertical rhythm for every Restore step", () => {
+    const root = findProjectRoot();
+    const css = readFileSync(join(root, "src", "ui", "notes.css"), "utf8");
+    const step = /\.tn-data-steps li\s*\{([^}]*)\}/.exec(css)?.[1] ?? "";
+    const details = /\.tn-data-steps \.tn-data-status,\s*\.tn-data-steps \.tn-data-check\s*\{([^}]*)\}/.exec(css)?.[1] ?? "";
+    assert.match(step, /display\s*:\s*flex/);
+    assert.match(step, /gap\s*:\s*5px/);
+    assert.match(details, /margin\s*:\s*0/);
+  });
 });
 
 /**

@@ -9,6 +9,7 @@ import type { ConflictPolicy, ImportPlan, PortableDataV1 } from "../portable/typ
 import type { Note } from "../notes/model";
 import type { NoteStore } from "./store";
 import { formatDateTime, t } from "../i18n";
+import { localizePortableError } from "./portable-errors";
 
 export interface DataDialogOptions {
   root: HTMLDialogElement;
@@ -169,7 +170,7 @@ export class DataDialog {
       this.renderRestoreSummary();
       this.syncRestoreButton();
     } catch (error) {
-      this.options.onMessage(t("dataExportError", this.errorText(error)));
+      this.options.onMessage(t("dataExportError", localizePortableError(error)));
     }
   }
 
@@ -190,7 +191,7 @@ export class DataDialog {
       this.refreshMergePreview();
     } catch (error) {
       this.resetImport();
-      this.importStatus.textContent = t("dataInvalidFile", this.errorText(error));
+      this.importStatus.textContent = t("dataInvalidFile", localizePortableError(error));
     } finally {
       this.setBusy(false);
     }
@@ -275,7 +276,7 @@ export class DataDialog {
       this.close();
       this.options.onMessage(t("dataImportComplete", String(result.notes.length)));
     } catch (error) {
-      this.importStatus.textContent = t("dataImportError", this.errorText(error));
+      this.importStatus.textContent = t("dataImportError", localizePortableError(error));
     } finally {
       this.setBusy(false);
     }
@@ -301,13 +302,9 @@ export class DataDialog {
       this.close();
       this.options.onMessage(t("dataRestoreComplete", String(result.notes.length)));
     } catch (error) {
-      this.importStatus.textContent = t("dataImportError", this.errorText(error));
+      this.importStatus.textContent = t("dataImportError", localizePortableError(error));
     } finally {
       this.setBusy(false);
     }
-  }
-
-  private errorText(error: unknown): string {
-    return error instanceof Error ? error.message : String(error);
   }
 }

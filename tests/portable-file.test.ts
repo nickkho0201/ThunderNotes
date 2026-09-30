@@ -41,6 +41,24 @@ describe("portable file transport", () => {
     await assert.rejects(() => decodePortableFile(fileFrom(new Uint8Array([0xc3, 0x28]))), /UTF-8/);
   });
 
+  it("distinguishes a file read failure from invalid UTF-8", async () => {
+    const cause = new Error("reader failed");
+    await assert.rejects(
+      () =>
+        decodePortableFile({
+          size: 1,
+          async arrayBuffer(): Promise<ArrayBuffer> {
+            throw cause;
+          },
+        }),
+      (error: unknown) =>
+        error instanceof Error &&
+        "code" in error &&
+        error.code === "file-read-failed" &&
+        error.cause === cause,
+    );
+  });
+
   it("creates a data-free, filesystem-safe UTC filename", () => {
     assert.equal(
       createBackupFilename(new Date("2026-01-02T03:04:05.678Z")),

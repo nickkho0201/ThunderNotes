@@ -194,6 +194,57 @@
   "dataInvalidFile": {
     "message": "Не удалось прочитать резервную копию: $1"
   },
+  "portableErrorEmptyFile": {
+    "message": "Выбранный файл пуст."
+  },
+  "portableErrorFileReadFailed": {
+    "message": "Не удалось прочитать выбранный файл."
+  },
+  "portableErrorFileTooLarge": {
+    "message": "Размер резервной копии — $1 байт; максимально допустимо $2 байт."
+  },
+  "portableErrorInvalidUtf8": {
+    "message": "Выбранный файл не является корректным UTF-8."
+  },
+  "portableErrorMalformedJson": {
+    "message": "Выбранный файл не является корректным JSON."
+  },
+  "portableErrorWrongFormat": {
+    "message": "Выбранный файл не является резервной копией ThunderNotes."
+  },
+  "portableErrorUnsupportedFormatVersion": {
+    "message": "Версия формата резервной копии ($1) новее поддерживаемой версии ($2)."
+  },
+  "portableErrorUnsupportedNoteSchema": {
+    "message": "Версия схемы заметки ($1) не поддерживается; эта сборка поддерживает версию $2."
+  },
+  "portableErrorMissingField": {
+    "message": "Отсутствует обязательное поле $1."
+  },
+  "portableErrorUnknownField": {
+    "message": "Поле $1 не поддерживается."
+  },
+  "portableErrorInvalidShape": {
+    "message": "Структура в $1 некорректна."
+  },
+  "portableErrorInvalidValue": {
+    "message": "Поле $1 содержит недопустимое значение."
+  },
+  "portableErrorDuplicateNoteId": {
+    "message": "Резервная копия содержит повторяющиеся идентификаторы заметок."
+  },
+  "portableErrorTooManyNotes": {
+    "message": "Резервная копия содержит $1 заметок; максимально допустимо $2."
+  },
+  "portableErrorMaxDepth": {
+    "message": "Метаданные превышают максимальную глубину вложенности $1."
+  },
+  "portableErrorInvalidMetadata": {
+    "message": "Метаданные в $1 не являются корректными данными JSON."
+  },
+  "portableErrorUnexpected": {
+    "message": "произошла внутренняя ошибка."
+  },
   "dataExportedAt": {
     "message": "Экспортировано"
   },

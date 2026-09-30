@@ -12,6 +12,7 @@ import {
   MAX_PORTABLE_NOTES,
   PORTABLE_DATA_FORMAT,
   PORTABLE_DATA_VERSION,
+  PortableDataError,
   type PortableDataV1,
 } from "../src/portable/types.ts";
 import { note } from "./helpers.ts";
@@ -147,8 +148,12 @@ describe("portable codec: strict external import", () => {
 
   it("rejects unsupported portable and note schema versions", () => {
     assert.throws(
-      () => decodePortableData({ ...document(), formatVersion: 2 }),
-      /newer than supported/,
+      () => decodePortableData({ ...document(), formatVersion: 999 }),
+      (error: unknown) =>
+        error instanceof PortableDataError &&
+        error.code === "unsupported-format-version" &&
+        error.parameters.actual === 999 &&
+        error.parameters.supported === 1,
     );
     assert.throws(
       () =>
@@ -156,7 +161,11 @@ describe("portable codec: strict external import", () => {
           ...document(),
           notes: [{ ...document().notes[0]!, schemaVersion: CURRENT_SCHEMA_VERSION + 1 }],
         }),
-      /schemaVersion 2 is not supported/,
+      (error: unknown) =>
+        error instanceof PortableDataError &&
+        error.code === "unsupported-note-schema" &&
+        error.parameters.actual === CURRENT_SCHEMA_VERSION + 1 &&
+        error.parameters.supported === CURRENT_SCHEMA_VERSION,
     );
   });
 

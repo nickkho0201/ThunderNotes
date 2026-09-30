@@ -102,6 +102,19 @@ describe("portable data dialog", () => {
     assert.deepEqual((await state.repository.getAll()).map((entry) => entry.id), ["local"]);
   });
 
+  it("shows a localized domain error instead of the codec's technical message", async () => {
+    const state = await harness();
+    const newer = JSON.parse(encodePortableData([note({ id: "new" })], "0.1.5")) as {
+      formatVersion: number;
+    };
+    newer.formatVersion = 999;
+    setSelectedFile(state.document, JSON.stringify(newer));
+    await settle();
+    const status = state.document.getElementById("tn-data-import-status")?.textContent ?? "";
+    assert.match(status, /backup format version 999 is newer than supported version 1/i);
+    assert.equal(status.includes("Portable Data version 999"), false);
+  });
+
   it("explains and enforces every Restore safety step", async () => {
     const state = await harness();
     const safety = state.document.getElementById("tn-data-safety-export") as HTMLButtonElement;

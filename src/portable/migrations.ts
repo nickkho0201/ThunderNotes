@@ -14,6 +14,7 @@ export function migratePortableData(input: unknown, fromVersion: number): unknow
     throw new PortableDataError(
       "unsupported-format-version",
       `Portable Data version ${fromVersion} is newer than supported version ${PORTABLE_DATA_VERSION}.`,
+      { actual: fromVersion, supported: PORTABLE_DATA_VERSION },
     );
   }
 
@@ -25,6 +26,7 @@ export function migratePortableData(input: unknown, fromVersion: number): unknow
       throw new PortableDataError(
         "unsupported-format-version",
         `Portable Data version ${fromVersion} is not supported.`,
+        { actual: fromVersion, supported: PORTABLE_DATA_VERSION },
       );
     }
     current = migration.migrate(current);

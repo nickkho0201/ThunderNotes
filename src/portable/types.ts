@@ -72,10 +72,32 @@ export interface ImportCommitChanged {
 
 export type ImportCommitResult = ImportCommitSuccess | ImportCommitChanged;
 
+export type PortableDataErrorCode =
+  | "duplicate-note-id"
+  | "empty-file"
+  | "file-read-failed"
+  | "file-too-large"
+  | "invalid-meta"
+  | "invalid-shape"
+  | "invalid-utf8"
+  | "invalid-value"
+  | "malformed-json"
+  | "max-depth"
+  | "missing-field"
+  | "too-many-notes"
+  | "unknown-field"
+  | "unsupported-format-version"
+  | "unsupported-note-schema"
+  | "wrong-format";
+
+export type PortableDataErrorParameter = string | number;
+export type PortableDataErrorParameters = Readonly<Record<string, PortableDataErrorParameter>>;
+
 export class PortableDataError extends Error {
   constructor(
-    readonly code: string,
+    readonly code: PortableDataErrorCode,
     message: string,
+    readonly parameters: PortableDataErrorParameters = {},
     options?: ErrorOptions,
   ) {
     super(message, options);

@@ -18,16 +18,32 @@ export async function decodePortableFile(file: PortableFileInput): Promise<Porta
     throw new PortableDataError(
       "file-too-large",
       `The selected file exceeds ${MAX_PORTABLE_FILE_BYTES} bytes.`,
+      { actual: file.size, maximum: MAX_PORTABLE_FILE_BYTES },
+    );
+  }
+
+  let bytes: ArrayBuffer;
+  try {
+    bytes = await file.arrayBuffer();
+  } catch (error) {
+    throw new PortableDataError(
+      "file-read-failed",
+      "The selected file could not be read.",
+      {},
+      { cause: error },
     );
   }
 
   let text: string;
   try {
-    text = new TextDecoder("utf-8", { fatal: true }).decode(await file.arrayBuffer());
+    text = new TextDecoder("utf-8", { fatal: true }).decode(bytes);
   } catch (error) {
-    throw new PortableDataError("invalid-utf8", "The selected file is not valid UTF-8.", {
-      cause: error,
-    });
+    throw new PortableDataError(
+      "invalid-utf8",
+      "The selected file is not valid UTF-8.",
+      {},
+      { cause: error },
+    );
   }
   return decodePortableText(text);
 }
