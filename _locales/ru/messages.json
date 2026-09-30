@@ -240,13 +240,37 @@
     "message": "Импорт не применён: $1"
   },
   "dataRestoreTitle": {
-    "message": "Восстановление / замена"
+    "message": "Восстановление из резервной копии"
   },
   "dataRestoreDescription": {
-    "message": "Заменить все текущие заметки выбранной резервной копией. Сначала скачайте страховочную копию текущих заметок."
+    "message": "Выполните эти шаги, чтобы заменить все текущие заметки выбранной резервной копией."
+  },
+  "dataRestoreSourceStep": {
+    "message": "Выберите резервную копию для восстановления"
+  },
+  "dataRestoreSourceReady": {
+    "message": "Резервная копия выбрана"
+  },
+  "dataRestoreSourceRequired": {
+    "message": "Сначала выберите файл в разделе «Импорт резервной копии» выше. Этот файл будет использован для восстановления."
+  },
+  "dataRestoreSourceSelected": {
+    "message": "$1 · Заметок в копии: $2"
+  },
+  "dataRestoreSafetyStep": {
+    "message": "Сохраните страховочную копию текущих заметок"
+  },
+  "dataRestoreAcknowledgeStep": {
+    "message": "Подтвердите сохранение страховочной копии"
+  },
+  "dataRestoreReplaceStep": {
+    "message": "Замените текущие заметки"
   },
   "dataSafetyExport": {
     "message": "Скачать страховочную копию"
+  },
+  "dataSafetyRequired": {
+    "message": "Чтобы продолжить, скачайте актуальную страховочную копию."
   },
   "dataSafetyAcknowledge": {
     "message": "Я сохранил страховочную копию"

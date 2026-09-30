@@ -923,6 +923,26 @@ body {
   background: color-mix(in srgb, var(--tn-danger) 6%, var(--tn-panel-bg));
 }
 
+.tn-data-steps {
+  display: grid;
+  gap: 10px;
+  margin: 10px 0 0;
+  padding-inline-start: 24px;
+}
+
+.tn-data-steps li {
+  padding-inline-start: 2px;
+}
+
+.tn-data-steps strong {
+  display: block;
+  margin-bottom: 5px;
+}
+
+.tn-data-steps .tn-data-status {
+  margin-bottom: 5px;
+}
+
 .tn-file {
   display: block;
   width: 100%;

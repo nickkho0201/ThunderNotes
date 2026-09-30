@@ -320,16 +320,48 @@
     "description": "Atomic import failure message."
   },
   "dataRestoreTitle": {
-    "message": "Restore / replace",
-    "description": "Heading for destructive dataset replacement."
+    "message": "Restore from backup",
+    "description": "Heading for restoring the dataset from a selected backup."
   },
   "dataRestoreDescription": {
-    "message": "Replace every current note with the selected backup. First download a safety backup of the current notes.",
+    "message": "Follow these steps to replace every current note with a selected backup.",
     "description": "Description of destructive restore."
+  },
+  "dataRestoreSourceStep": {
+    "message": "Choose a backup to restore",
+    "description": "First restore step before a source backup is selected."
+  },
+  "dataRestoreSourceReady": {
+    "message": "Backup selected",
+    "description": "Completed first restore step after validation."
+  },
+  "dataRestoreSourceRequired": {
+    "message": "First choose a file in Import backup above. That file will be used for restore.",
+    "description": "Visible prerequisite explaining why restore controls are disabled."
+  },
+  "dataRestoreSourceSelected": {
+    "message": "$1 · Notes in backup: $2",
+    "description": "Validated restore source. $1 = filename, $2 = note count."
+  },
+  "dataRestoreSafetyStep": {
+    "message": "Save a safety backup of current notes",
+    "description": "Second restore step."
+  },
+  "dataRestoreAcknowledgeStep": {
+    "message": "Confirm the safety backup was saved",
+    "description": "Third restore step."
+  },
+  "dataRestoreReplaceStep": {
+    "message": "Replace current notes",
+    "description": "Fourth and destructive restore step."
   },
   "dataSafetyExport": {
     "message": "Download safety backup",
     "description": "Button required before destructive restore."
+  },
+  "dataSafetyRequired": {
+    "message": "Download a current safety backup to continue.",
+    "description": "Instruction shown after a restore source is ready or safety state becomes stale."
   },
   "dataSafetyAcknowledge": {
     "message": "I saved the safety backup",

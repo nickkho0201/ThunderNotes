@@ -49,9 +49,10 @@ async function harness(seed = [note({ id: "local", content: "local" })]): Promis
   return { document: document as unknown as Document, store, repository, downloads, messages };
 }
 
-function setSelectedFile(document: Document, text: string): void {
+function setSelectedFile(document: Document, text: string, name = "thundernotes-backup.json"): void {
   const bytes = new TextEncoder().encode(text);
   const file = {
+    name,
     size: bytes.byteLength,
     async arrayBuffer(): Promise<ArrayBuffer> {
       return bytes.buffer.slice(bytes.byteOffset, bytes.byteOffset + bytes.byteLength) as ArrayBuffer;
@@ -101,23 +102,70 @@ describe("portable data dialog", () => {
     assert.deepEqual((await state.repository.getAll()).map((entry) => entry.id), ["local"]);
   });
 
-  it("requires a safety download and acknowledgement before Restore", async () => {
+  it("explains and enforces every Restore safety step", async () => {
     const state = await harness();
-    setSelectedFile(state.document, encodePortableData([note({ id: "restored" })], "0.1.5"));
-    await settle();
     const safety = state.document.getElementById("tn-data-safety-export") as HTMLButtonElement;
     const acknowledge = state.document.getElementById("tn-data-safety-ack") as HTMLInputElement;
     const restore = state.document.getElementById("tn-data-restore") as HTMLButtonElement;
+    const sourceStep = state.document.getElementById("tn-data-restore-source-step") as HTMLElement;
+    const source = state.document.getElementById("tn-data-restore-source") as HTMLElement;
+
+    assert.equal(state.document.getElementById("tn-data-restore-source")?.closest("section")?.hidden, false);
+    assert.match(sourceStep.textContent ?? "", /choose a backup/i);
+    assert.match(source.textContent ?? "", /first choose a file.*above/i);
+    assert.equal(safety.disabled, true);
+    assert.equal(acknowledge.disabled, true);
+    assert.equal(restore.disabled, true);
+
+    setSelectedFile(
+      state.document,
+      encodePortableData([note({ id: "restored" })], "0.1.5"),
+      "restore-source.json",
+    );
+    await settle();
+    assert.match(sourceStep.textContent ?? "", /backup selected/i);
+    assert.match(source.textContent ?? "", /restore-source\.json.*notes in backup: 1/i);
     assert.equal(safety.disabled, false);
     assert.equal(acknowledge.disabled, true);
     assert.equal(restore.disabled, true);
     safety.click();
     assert.equal(state.downloads.length, 1);
+    assert.match(state.document.getElementById("tn-data-safety-status")?.textContent ?? "", /download started/i);
     assert.equal(acknowledge.disabled, false);
+    assert.match(state.document.getElementById("tn-data-restore-summary")?.textContent ?? "", /current 1 notes.*1 notes/i);
     acknowledge.checked = true;
     const EventConstructor = (state.document.defaultView as unknown as { Event: typeof Event }).Event;
     acknowledge.dispatchEvent(new EventConstructor("change"));
     assert.equal(restore.disabled, false);
+  });
+
+  it("invalidates safety acknowledgement when the restore source changes", async () => {
+    const state = await harness();
+    const safety = state.document.getElementById("tn-data-safety-export") as HTMLButtonElement;
+    const acknowledge = state.document.getElementById("tn-data-safety-ack") as HTMLInputElement;
+    const restore = state.document.getElementById("tn-data-restore") as HTMLButtonElement;
+    const source = state.document.getElementById("tn-data-restore-source") as HTMLElement;
+    const EventConstructor = (state.document.defaultView as unknown as { Event: typeof Event }).Event;
+
+    setSelectedFile(state.document, encodePortableData([note({ id: "first" })], "0.1.5"), "first.json");
+    await settle();
+    safety.click();
+    acknowledge.checked = true;
+    acknowledge.dispatchEvent(new EventConstructor("change"));
+    assert.equal(restore.disabled, false);
+
+    setSelectedFile(
+      state.document,
+      encodePortableData([note({ id: "second" }), note({ id: "third" })], "0.1.5"),
+      "second.json",
+    );
+    await settle();
+    assert.match(source.textContent ?? "", /second\.json.*notes in backup: 2/i);
+    assert.equal(safety.disabled, false);
+    assert.equal(acknowledge.checked, false);
+    assert.equal(acknowledge.disabled, true);
+    assert.equal(restore.disabled, true);
+    assert.match(state.document.getElementById("tn-data-safety-status")?.textContent ?? "", /safety backup/i);
   });
 
   it("refreshes a stale merge preview and requires another click", async () => {
@@ -160,6 +208,7 @@ describe("portable data dialog", () => {
     assert.equal(acknowledge.disabled, true);
     assert.equal(restore.disabled, true);
     assert.match(state.document.getElementById("tn-data-import-status")?.textContent ?? "", /Download a new safety backup/);
+    assert.match(state.document.getElementById("tn-data-safety-status")?.textContent ?? "", /safety backup/i);
     assert.deepEqual((await state.repository.getAll()).map((entry) => entry.id), ["local"]);
 
     safety.click();

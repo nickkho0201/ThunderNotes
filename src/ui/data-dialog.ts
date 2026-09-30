@@ -41,12 +41,15 @@ export class DataDialog {
   private readonly resultingTotal: HTMLElement;
   private readonly conflictPolicy: HTMLSelectElement;
   private readonly importButton: HTMLButtonElement;
+  private readonly restoreSourceStep: HTMLElement;
+  private readonly restoreSource: HTMLElement;
   private readonly safetyButton: HTMLButtonElement;
   private readonly safetyStatus: HTMLElement;
   private readonly safetyAcknowledge: HTMLInputElement;
   private readonly restoreSummary: HTMLElement;
   private readonly restoreButton: HTMLButtonElement;
   private data: PortableDataV1 | null = null;
+  private sourceFilename: string | null = null;
   private mergePlan: ImportPlan | null = null;
   private safetyPlan: ImportPlan | null = null;
   private busy = false;
@@ -68,6 +71,8 @@ export class DataDialog {
     this.resultingTotal = requireInside(root, "tn-data-resulting-total");
     this.conflictPolicy = requireInside(root, "tn-data-conflict-policy");
     this.importButton = requireInside(root, "tn-data-import");
+    this.restoreSourceStep = requireInside(root, "tn-data-restore-source-step");
+    this.restoreSource = requireInside(root, "tn-data-restore-source");
     this.safetyButton = requireInside(root, "tn-data-safety-export");
     this.safetyStatus = requireInside(root, "tn-data-safety-status");
     this.safetyAcknowledge = requireInside(root, "tn-data-safety-ack");
@@ -117,6 +122,7 @@ export class DataDialog {
 
   private resetImport(): void {
     this.data = null;
+    this.sourceFilename = null;
     this.mergePlan = null;
     this.safetyPlan = null;
     this.summary.hidden = true;
@@ -130,6 +136,7 @@ export class DataDialog {
     this.safetyAcknowledge.disabled = true;
     this.restoreSummary.textContent = "";
     this.restoreButton.disabled = true;
+    this.renderRestoreSource();
   }
 
   private createDownload(): { filename: string; noteCount: number; planSnapshot: readonly Note[] } {
@@ -174,8 +181,11 @@ export class DataDialog {
     }
     this.setBusy(true);
     try {
-      this.data = await decodePortableFile(files[0]);
+      const selectedFile = files[0];
+      this.data = await decodePortableFile(selectedFile);
+      this.sourceFilename = selectedFile.name;
       this.importStatus.textContent = "";
+      this.renderRestoreSource();
       this.invalidateSafetyBackup();
       this.refreshMergePreview();
     } catch (error) {
@@ -223,9 +233,22 @@ export class DataDialog {
     ]);
   }
 
+  private renderRestoreSource(): void {
+    if (!this.data || this.sourceFilename === null) {
+      this.restoreSourceStep.textContent = t("dataRestoreSourceStep");
+      this.restoreSource.textContent = t("dataRestoreSourceRequired");
+      return;
+    }
+    this.restoreSourceStep.textContent = t("dataRestoreSourceReady");
+    this.restoreSource.textContent = t("dataRestoreSourceSelected", [
+      this.sourceFilename,
+      String(this.data.notes.length),
+    ]);
+  }
+
   private invalidateSafetyBackup(): void {
     this.safetyPlan = null;
-    this.safetyStatus.textContent = "";
+    this.safetyStatus.textContent = this.data ? t("dataSafetyRequired") : "";
     this.safetyAcknowledge.checked = false;
     this.safetyAcknowledge.disabled = true;
     this.restoreSummary.textContent = "";
