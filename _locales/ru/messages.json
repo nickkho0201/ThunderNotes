@@ -158,6 +158,114 @@
   "dismiss": {
     "message": "Закрыть"
   },
+  "dataButton": {
+    "message": "Данные…"
+  },
+  "dataButtonTitle": {
+    "message": "Резервная копия, импорт или восстановление заметок"
+  },
+  "dataTitle": {
+    "message": "Переносимые данные"
+  },
+  "dataExportTitle": {
+    "message": "Экспорт резервной копии"
+  },
+  "dataExportDescription": {
+    "message": "Скачать все текущие заметки в переносимой резервной копии JSON."
+  },
+  "dataExportButton": {
+    "message": "Экспортировать копию"
+  },
+  "dataDownloadStarted": {
+    "message": "$1 — скачивание начато ($2 заметок)."
+  },
+  "dataExportError": {
+    "message": "Не удалось создать резервную копию: $1"
+  },
+  "dataImportTitle": {
+    "message": "Импорт резервной копии"
+  },
+  "dataImportDescription": {
+    "message": "Выберите резервную копию ThunderNotes. По умолчанию существующие заметки сохраняются."
+  },
+  "dataChooseFile": {
+    "message": "Выбрать файл резервной копии"
+  },
+  "dataInvalidFile": {
+    "message": "Не удалось прочитать резервную копию: $1"
+  },
+  "dataExportedAt": {
+    "message": "Экспортировано"
+  },
+  "dataAppVersion": {
+    "message": "Версия приложения"
+  },
+  "dataFileNotes": {
+    "message": "Заметок в файле"
+  },
+  "dataNewNotes": {
+    "message": "Новых"
+  },
+  "dataIdenticalNotes": {
+    "message": "Совпадающих"
+  },
+  "dataConflicts": {
+    "message": "Конфликтов"
+  },
+  "dataResultingTotal": {
+    "message": "Всего после импорта"
+  },
+  "dataConflictPolicy": {
+    "message": "При конфликтах"
+  },
+  "dataKeepBoth": {
+    "message": "Сохранить обе"
+  },
+  "dataKeepCurrent": {
+    "message": "Оставить текущую"
+  },
+  "dataUseImported": {
+    "message": "Использовать импортированную"
+  },
+  "dataImportButton": {
+    "message": "Импортировать заметки"
+  },
+  "dataLocalChanged": {
+    "message": "Локальные заметки изменились после предпросмотра. Проверьте обновлённую сводку и подтвердите ещё раз."
+  },
+  "dataImportComplete": {
+    "message": "Импорт завершён. Теперь доступно заметок: $1."
+  },
+  "dataImportError": {
+    "message": "Импорт не применён: $1"
+  },
+  "dataRestoreTitle": {
+    "message": "Восстановление / замена"
+  },
+  "dataRestoreDescription": {
+    "message": "Заменить все текущие заметки выбранной резервной копией. Сначала скачайте страховочную копию текущих заметок."
+  },
+  "dataSafetyExport": {
+    "message": "Скачать страховочную копию"
+  },
+  "dataSafetyAcknowledge": {
+    "message": "Я сохранил страховочную копию"
+  },
+  "dataRestoreSummary": {
+    "message": "Текущие заметки ($1) будут заменены заметками из копии ($2)."
+  },
+  "dataRestoreButton": {
+    "message": "Заменить все заметки"
+  },
+  "dataRestoreConfirm": {
+    "message": "Заменить все текущие заметки этой резервной копией? Отменить это действие внутри ThunderNotes нельзя."
+  },
+  "dataRestoreChanged": {
+    "message": "Локальные заметки изменились. Скачайте новую страховочную копию, подтвердите её сохранение и снова подтвердите восстановление."
+  },
+  "dataRestoreComplete": {
+    "message": "Восстановление завершено. Теперь доступно заметок: $1."
+  },
   "unknownError": {
     "message": "Неизвестная ошибка"
   },

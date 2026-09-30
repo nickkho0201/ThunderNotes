@@ -849,7 +849,149 @@ body {
   max-width: 100%;
 }
 
-/* ==========================================================================
+/* ----------------------------------------------------------- portable data */
+
+.tn-dialog {
+  width: min(560px, calc(100vw - 32px));
+  max-height: calc(100vh - 32px);
+  padding: 0;
+  color: var(--tn-text);
+  background: var(--tn-panel-bg);
+  border: 1px solid var(--tn-border-strong);
+  border-radius: 7px;
+  box-shadow: var(--tn-shadow);
+}
+
+.tn-dialog::backdrop {
+  background: rgba(0, 0, 0, 0.42);
+}
+
+.tn-dialog__header,
+.tn-dialog__footer {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 10px 12px;
+  border-bottom: 1px solid var(--tn-border);
+}
+
+.tn-dialog__header h2 {
+  flex: 1 1 auto;
+  margin: 0;
+  font-size: 16px;
+}
+
+.tn-dialog__close {
+  width: 24px;
+  height: 24px;
+}
+
+.tn-dialog__body {
+  max-height: calc(100vh - 132px);
+  padding: 0 12px;
+  overflow: auto;
+}
+
+.tn-dialog__footer {
+  justify-content: flex-end;
+  border-top: 1px solid var(--tn-border);
+  border-bottom: 0;
+}
+
+.tn-data-section {
+  padding: 12px 0;
+  border-bottom: 1px solid var(--tn-border);
+}
+
+.tn-data-section:last-child {
+  border-bottom: 0;
+}
+
+.tn-data-section h3 {
+  margin: 0 0 4px;
+  font-size: 14px;
+}
+
+.tn-data-section p {
+  margin: 4px 0 9px;
+  color: var(--tn-text-muted);
+}
+
+.tn-data-section--danger {
+  margin: 0 -12px;
+  padding: 12px;
+  background: color-mix(in srgb, var(--tn-danger) 6%, var(--tn-panel-bg));
+}
+
+.tn-file {
+  display: block;
+  width: 100%;
+  margin: 8px 0;
+  color: var(--tn-text);
+  font: inherit;
+}
+
+.tn-data-status {
+  min-height: 1.45em;
+  overflow-wrap: anywhere;
+}
+
+.tn-data-summary dl {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 4px 16px;
+  margin: 10px 0;
+}
+
+.tn-data-summary dl div {
+  display: flex;
+  justify-content: space-between;
+  gap: 8px;
+  min-width: 0;
+}
+
+.tn-data-summary dt {
+  color: var(--tn-text-muted);
+}
+
+.tn-data-summary dd {
+  margin: 0;
+  overflow-wrap: anywhere;
+  text-align: end;
+}
+
+.tn-data-field,
+.tn-data-check {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin: 8px 0;
+}
+
+.tn-data-field {
+  justify-content: space-between;
+}
+
+.tn-data-field .tn-select {
+  max-width: 230px;
+}
+
+@media (max-width: 520px) {
+  .tn-data-summary dl {
+    grid-template-columns: 1fr;
+  }
+
+  .tn-data-field {
+    align-items: stretch;
+    flex-direction: column;
+  }
+
+  .tn-data-field .tn-select {
+    max-width: none;
+  }
+}
+
+/* ===========================================================================
  * Responsive layout
  *
  * The page itself never scrolls horizontally: `.tn-main` clips, and each pane

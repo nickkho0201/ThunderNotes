@@ -211,6 +211,150 @@
     "message": "Dismiss",
     "description": "Tooltip of the error banner close button."
   },
+  "dataButton": {
+    "message": "Data…",
+    "description": "Toolbar button opening backup, import and restore actions."
+  },
+  "dataButtonTitle": {
+    "message": "Backup, import or restore notes",
+    "description": "Tooltip and accessibility label for the Data button."
+  },
+  "dataTitle": {
+    "message": "Portable data",
+    "description": "Title of the backup/import dialog."
+  },
+  "dataExportTitle": {
+    "message": "Export backup",
+    "description": "Heading for full note backup export."
+  },
+  "dataExportDescription": {
+    "message": "Download all current notes as a portable JSON backup.",
+    "description": "Description of backup export."
+  },
+  "dataExportButton": {
+    "message": "Export backup",
+    "description": "Button starting a full backup download."
+  },
+  "dataDownloadStarted": {
+    "message": "$1 — download started ($2 notes).",
+    "description": "Export status. $1 = filename, $2 = note count."
+  },
+  "dataExportError": {
+    "message": "Could not create the backup: $1",
+    "description": "Backup creation error."
+  },
+  "dataImportTitle": {
+    "message": "Import backup",
+    "description": "Heading for non-destructive note import."
+  },
+  "dataImportDescription": {
+    "message": "Choose a ThunderNotes backup. Existing notes are kept by default.",
+    "description": "Description of merge import."
+  },
+  "dataChooseFile": {
+    "message": "Choose backup file",
+    "description": "Accessibility label for the backup file picker."
+  },
+  "dataInvalidFile": {
+    "message": "The backup cannot be read: $1",
+    "description": "Strict backup validation error."
+  },
+  "dataExportedAt": {
+    "message": "Exported",
+    "description": "Backup metadata label."
+  },
+  "dataAppVersion": {
+    "message": "App version",
+    "description": "Backup metadata label."
+  },
+  "dataFileNotes": {
+    "message": "Notes in file",
+    "description": "Import summary label."
+  },
+  "dataNewNotes": {
+    "message": "New",
+    "description": "Import summary label."
+  },
+  "dataIdenticalNotes": {
+    "message": "Identical",
+    "description": "Import summary label."
+  },
+  "dataConflicts": {
+    "message": "Conflicts",
+    "description": "Import summary label."
+  },
+  "dataResultingTotal": {
+    "message": "Resulting total",
+    "description": "Import summary label."
+  },
+  "dataConflictPolicy": {
+    "message": "For conflicts",
+    "description": "Label for the import conflict strategy."
+  },
+  "dataKeepBoth": {
+    "message": "Keep both",
+    "description": "Conflict strategy retaining local and imported notes."
+  },
+  "dataKeepCurrent": {
+    "message": "Keep current",
+    "description": "Conflict strategy retaining the local note."
+  },
+  "dataUseImported": {
+    "message": "Use imported",
+    "description": "Conflict strategy replacing the local note."
+  },
+  "dataImportButton": {
+    "message": "Import notes",
+    "description": "Explicit confirmation button for merge import."
+  },
+  "dataLocalChanged": {
+    "message": "Local notes changed since this preview. Review the updated summary and confirm again.",
+    "description": "TOCTOU warning after a stale import preview."
+  },
+  "dataImportComplete": {
+    "message": "Import complete. $1 notes are now available.",
+    "description": "Successful merge result. $1 = resulting total."
+  },
+  "dataImportError": {
+    "message": "Import was not applied: $1",
+    "description": "Atomic import failure message."
+  },
+  "dataRestoreTitle": {
+    "message": "Restore / replace",
+    "description": "Heading for destructive dataset replacement."
+  },
+  "dataRestoreDescription": {
+    "message": "Replace every current note with the selected backup. First download a safety backup of the current notes.",
+    "description": "Description of destructive restore."
+  },
+  "dataSafetyExport": {
+    "message": "Download safety backup",
+    "description": "Button required before destructive restore."
+  },
+  "dataSafetyAcknowledge": {
+    "message": "I saved the safety backup",
+    "description": "Explicit acknowledgement before destructive restore."
+  },
+  "dataRestoreSummary": {
+    "message": "Current $1 notes will be replaced by $2 notes.",
+    "description": "Restore summary. $1 = current count, $2 = backup count."
+  },
+  "dataRestoreButton": {
+    "message": "Replace all notes",
+    "description": "Destructive restore button."
+  },
+  "dataRestoreConfirm": {
+    "message": "Replace all current notes with this backup? This cannot be undone from inside ThunderNotes.",
+    "description": "Final destructive restore confirmation."
+  },
+  "dataRestoreChanged": {
+    "message": "Local notes changed. Download a new safety backup, acknowledge it, and confirm restore again.",
+    "description": "TOCTOU warning invalidating the restore safety backup."
+  },
+  "dataRestoreComplete": {
+    "message": "Restore complete. $1 notes are now available.",
+    "description": "Successful restore result. $1 = resulting total."
+  },
   "unknownError": {
     "message": "Unknown error",
     "description": "Fallback error text."

@@ -39,6 +39,10 @@
 
       <select id="tn-sort" class="tn-select" data-i18n-aria-label="sortLabel"></select>
 
+      <button id="tn-data" class="tn-btn" type="button"
+        data-i18n="dataButton" data-i18n-title="dataButtonTitle"
+        data-i18n-aria-label="dataButtonTitle"></button>
+
       <button id="tn-new" class="tn-btn tn-btn--primary" type="button"
         data-i18n-title="newNoteTooltip">
         <span class="tn-icon tn-icon--add" aria-hidden="true"></span>
@@ -127,6 +131,76 @@
         </div>
       </section>
     </main>
+
+    <dialog id="tn-data-dialog" class="tn-dialog" aria-labelledby="tn-data-title">
+      <div class="tn-dialog__header">
+        <h2 id="tn-data-title" data-i18n="dataTitle"></h2>
+        <button class="tn-icon-btn tn-dialog__close" type="button" data-data-close
+          data-i18n-title="cancel" data-i18n-aria-label="cancel">
+          <span class="tn-icon tn-icon--close" aria-hidden="true"></span>
+        </button>
+      </div>
+
+      <div class="tn-dialog__body">
+        <section class="tn-data-section">
+          <h3 data-i18n="dataExportTitle"></h3>
+          <p data-i18n="dataExportDescription"></p>
+          <button id="tn-data-export" class="tn-btn tn-btn--primary" type="button"
+            data-i18n="dataExportButton"></button>
+          <p id="tn-data-export-status" class="tn-data-status" aria-live="polite"></p>
+        </section>
+
+        <section class="tn-data-section">
+          <h3 data-i18n="dataImportTitle"></h3>
+          <p data-i18n="dataImportDescription"></p>
+          <input id="tn-data-file" class="tn-file" type="file" accept="application/json,.json"
+            data-i18n-aria-label="dataChooseFile" />
+          <p id="tn-data-import-status" class="tn-data-status" aria-live="polite"></p>
+
+          <div id="tn-data-summary" class="tn-data-summary" hidden>
+            <dl>
+              <div><dt data-i18n="dataExportedAt"></dt><dd id="tn-data-exported-at"></dd></div>
+              <div><dt data-i18n="dataAppVersion"></dt><dd id="tn-data-app-version"></dd></div>
+              <div><dt data-i18n="dataFileNotes"></dt><dd id="tn-data-file-count"></dd></div>
+              <div><dt data-i18n="dataNewNotes"></dt><dd id="tn-data-new-count"></dd></div>
+              <div><dt data-i18n="dataIdenticalNotes"></dt><dd id="tn-data-identical-count"></dd></div>
+              <div><dt data-i18n="dataConflicts"></dt><dd id="tn-data-conflict-count"></dd></div>
+              <div><dt data-i18n="dataResultingTotal"></dt><dd id="tn-data-resulting-total"></dd></div>
+            </dl>
+
+            <label class="tn-data-field" for="tn-data-conflict-policy">
+              <span data-i18n="dataConflictPolicy"></span>
+              <select id="tn-data-conflict-policy" class="tn-select">
+                <option value="keep-both" data-i18n="dataKeepBoth"></option>
+                <option value="keep-current" data-i18n="dataKeepCurrent"></option>
+                <option value="use-imported" data-i18n="dataUseImported"></option>
+              </select>
+            </label>
+            <button id="tn-data-import" class="tn-btn tn-btn--primary" type="button" disabled
+              data-i18n="dataImportButton"></button>
+          </div>
+        </section>
+
+        <section class="tn-data-section tn-data-section--danger">
+          <h3 data-i18n="dataRestoreTitle"></h3>
+          <p data-i18n="dataRestoreDescription"></p>
+          <button id="tn-data-safety-export" class="tn-btn" type="button" disabled
+            data-i18n="dataSafetyExport"></button>
+          <p id="tn-data-safety-status" class="tn-data-status" aria-live="polite"></p>
+          <label class="tn-data-check">
+            <input id="tn-data-safety-ack" type="checkbox" disabled />
+            <span data-i18n="dataSafetyAcknowledge"></span>
+          </label>
+          <p id="tn-data-restore-summary" class="tn-data-status"></p>
+          <button id="tn-data-restore" class="tn-btn tn-btn--danger" type="button" disabled
+            data-i18n="dataRestoreButton"></button>
+        </section>
+      </div>
+
+      <div class="tn-dialog__footer">
+        <button class="tn-btn" type="button" data-data-close data-i18n="cancel"></button>
+      </div>
+    </dialog>
 
     <script type="module" src="ui/notes.js"></script>
   </body>

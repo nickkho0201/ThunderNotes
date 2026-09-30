@@ -166,6 +166,8 @@ const REQUIRED_IDS = [
   "tn-search-clear",
   "tn-color-filter",
   "tn-sort",
+  "tn-data",
+  "tn-data-dialog",
   "tn-new",
   "tn-main",
   "tn-list",

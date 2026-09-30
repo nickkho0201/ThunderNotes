@@ -18,6 +18,7 @@ import { openUiPreferencesStore } from "../storage/ui-preferences";
 import type { Note, NoteColor, NoteFormat } from "../notes/model";
 import type { ColorFilter, SortKey } from "../notes/query";
 import { SORT_KEYS, isSortKey } from "../notes/query";
+import { DataDialog } from "./data-dialog";
 
 function requireElement<T extends HTMLElement>(id: string): T {
   const element = document.getElementById(id);
@@ -121,6 +122,8 @@ async function main(): Promise<void> {
   const colorFilterGroup = requireElement<HTMLElement>("tn-color-filter");
   const sortSelect = requireElement<HTMLSelectElement>("tn-sort");
   const newButton = requireElement<HTMLButtonElement>("tn-new");
+  const dataButton = requireElement<HTMLButtonElement>("tn-data");
+  const dataDialogRoot = requireElement<HTMLDialogElement>("tn-data-dialog");
   const listElement = requireElement<HTMLElement>("tn-list");
   const listEmpty = requireElement<HTMLElement>("tn-list-empty");
   const countLabel = requireElement<HTMLElement>("tn-count");
@@ -192,6 +195,13 @@ async function main(): Promise<void> {
       const key = context === "load" ? "loadError" : context === "delete" ? "deleteError" : "saveError";
       showBanner(t(key, message));
     },
+  });
+
+  const dataDialog = new DataDialog({
+    root: dataDialogRoot,
+    store,
+    appVersion: getBrowser()?.runtime.getManifest().version ?? "unknown",
+    onMessage: (message) => showBanner(message, 6_000),
   });
 
   // ------------------------------------------------------------------- views
@@ -412,6 +422,8 @@ async function main(): Promise<void> {
     });
   });
 
+  dataButton.addEventListener("click", () => dataDialog.open());
+
   // Narrow layout only: hand the pane back to the list. The note stays selected
   // (and any pending edit is flushed), so returning shows it highlighted again.
   backButton.addEventListener("click", () => {
@@ -497,7 +509,7 @@ async function main(): Promise<void> {
   // Keeps a reference so tooling can inspect state during development; it is not
   // part of the extension's public surface.
   Object.defineProperty(globalThis, "__thunderNotes", {
-    value: { store, listView, editorView, theme },
+    value: { store, listView, editorView, dataDialog, theme },
     configurable: true,
   });
 }

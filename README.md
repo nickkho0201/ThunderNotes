@@ -44,6 +44,9 @@ in [Testing](#testing).
 - Seven-way colour marking (none + six colours) shown as a compact leading strip
   in the list — never as a full background.
 - **Live search** across the whole note content, case-insensitive.
+- **Portable Data v1** full backups as readable UTF-8 JSON, with strict import,
+  non-destructive Merge conflict policies, and safety-gated Restore / Replace.
+  Export uses the current in-memory note state, including pending edits.
 - **Colour filter** combined with search.
 - **Four sort orders**: created newest/oldest first, updated newest/oldest first
   (default: created, newest first). Each row shows the timestamp of the field the
@@ -272,8 +275,8 @@ keeps working for the current session with in-memory storage and shows a warning
 banner that the notes will not be saved.
 
 **To delete your notes**, delete them in the app, or remove the extension — your
-Thunderbird add-on data is removed with it. Because nothing leaves your machine,
-there is currently no export/import (see [Roadmap](#roadmap)).
+Thunderbird add-on data is removed with it. Use **Data… → Export backup** before
+removing the extension when you want to retain a portable copy.
 
 ---
 
@@ -286,6 +289,7 @@ the others.
 | --- | --- | --- |
 | Domain model | `src/notes/model.ts` | The `Note` shape, validation/normalization, and `revision`/`updatedAt` bumping. No I/O, no DOM. |
 | Derived logic | `src/notes/preview.ts`, `src/notes/query.ts` | Preview text extraction, and the pure search → filter → sort pipeline. No I/O, no DOM. |
+| Portable data | `src/portable/` | Canonical backup codec, strict external validation, import planning, conflict handling, file transport, and TOCTOU-safe commit coordination. |
 | Storage | `src/storage/` | `NotesRepository` interface, the IndexedDB implementation, an in-memory implementation, and schema migrations. |
 | Markdown | `src/markdown/` | `marked` plus a strict DOM-allowlist sanitizer. |
 | Theme | `src/theme/` | Detects Thunderbird's light/dark theme and keeps it live. |
@@ -302,8 +306,8 @@ Key decisions and why:
   keeps re-render cost bounded and predictable, and avoids pulling in a runtime
   for a three-region layout.
 - **A repository interface, not direct IndexedDB calls.** The UI cannot tell how
-  notes are stored, so export/import, a backup file, or a synced replica can be
-  added as another implementation.
+  notes are stored. Bulk replacement is one atomic repository operation, while
+  the portable codec remains independent of its file-download transport.
 - **Pure functions for search/filter/sort/preview.** These are the parts most
   likely to grow (and most likely to break silently), so they are synchronous,
   free of side effects, and directly unit-tested.
@@ -406,9 +410,9 @@ These are the first things to check when installing the XPI manually.
 
 These are real and deliberate, not oversights:
 
-1. **No export or import yet.** Your notes live only in Thunderbird's storage for
-   this extension. Removing the extension removes the notes. Export/import is the
-   highest-priority item on the [roadmap](#roadmap).
+1. **Backup/import is user-initiated.** ThunderNotes does not automatically sync
+   backups or choose a storage destination. The browser download UI owns the
+   final file destination after ThunderNotes starts a backup download.
 2. **Theme detection has three tiers, not one guaranteed signal.** Thunderbird's
    built-in Light and Dark themes declare `properties.color_scheme`, which is
    detected exactly. For third-party themes that only set colours,
@@ -557,15 +561,12 @@ Light/Dark styling wrong, so the two are easy to compare.
 Deliberately small next steps, in the order they make sense. The architecture is
 already shaped for each of them — none requires a rewrite.
 
-1. **Export / import / backup.** JSON export and import through the
-   `NotesRepository` boundary, which already exists. This closes the biggest
-   current risk (data is only in one place) and needs no schema change.
-2. **Mail links.** Associate a note with a message; create a note from a selected
+1. **Mail links.** Associate a note with a message; create a note from a selected
    message; open the linked message. This lands as optional fields on `Note`
    (already designed for via `schemaVersion` and the `meta` bag) plus one
    migration, and a link section in the editor pane.
-3. **Calendar and task links.** The same pattern against the `calendar` APIs.
-4. **Device sync.** Device identity, QR pairing, local/P2P transfer, and
+2. **Calendar and task links.** The same pattern against the `calendar` APIs.
+3. **Device sync.** Device identity, QR pairing, local/P2P transfer, and
    `revision`-based conflict resolution.
 
 Out of scope by intent: cloud accounts, telemetry, collaboration, AI features,
