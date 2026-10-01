@@ -49,9 +49,9 @@ in [Testing](#testing).
   immediately surrounding bold, italic and inline-code delimiters; selecting the
   whole isolated construct also removes them. Ambiguous marker runs are wrapped
   conservatively. Ctrl/Cmd+K continues to insert links. Enter continues indented
-  bullet, numbered and
-  task-list source; Enter on an empty item exits the list. Brackets, parentheses
-  and backticks pair at text boundaries or around selected text. Only tracked,
+  bullet, numbered and task-list source; Enter on an empty item exits the list.
+  Brackets, parentheses and backticks pair at text boundaries or around selected
+  text. Only tracked,
   automatically inserted closing characters are skipped when typed again.
   Editing commands preserve native undo when supported, with `setRangeText` as
   a fallback whose undo behavior needs manual Thunderbird verification.
@@ -78,8 +78,8 @@ in [Testing](#testing).
   and a clickable heading with direct year entry and a twelve-month grid,
   highlights endpoints/interior/today, and offers a dedicated reset. Dates are
   inclusive local calendar days. It combines with search, colour and the existing
-  format query. Dates reset on reopening and may be cleared
-  when creating a note to keep the new note visible.
+  format query. Dates reset when the Space tab is closed and reopened, and may
+  be cleared when creating a note to keep the new note visible.
 - **Four sort orders**: created newest/oldest first, updated newest/oldest first
   (default: created, newest first). Each row shows the timestamp of the field the
   list is **currently sorted by** — `Created` for a creation sort, `Edited` for a
@@ -391,7 +391,8 @@ URLs, control-character-obfuscated schemes, and unknown tags.
 ## Testing
 
 `pnpm test` builds the extension and the test bundles with esbuild, then runs
-Node's built-in test runner. The suites cover:
+Node's built-in test runner. There are **502 tests in 76 suites across 23 test
+files**. The suites cover:
 
 | Suite | Covers |
 | --- | --- |
@@ -399,6 +400,9 @@ Node's built-in test runner. The suites cover:
 | `preview` | Title/excerpt derivation for plain and Markdown notes, markdown stripping, truncation, CRLF handling, empty notes. |
 | `query` | All four sort orders, deterministic tie-breaking, case-insensitive substring search, colour and format filters, combined filters, and a 10 000-note performance guard. |
 | `markdown` | Sanitizer behaviour (scripts, event handlers, URL schemes, `rel`, comments, unknown tags), idempotency, core Markdown rendering, escaped raw HTML. |
+| `markdown-edit` | Contextual formatting toggles, selection/caret edits, list continuation, conservative ordered-list insertion/deletion renumber, and four-space Tab/Shift+Tab indentation. |
+| `date-filter`, `calendar` | Inclusive local-day boundaries, DST, combined filters, session-only state, range selection, month/year navigation, keyboard/focus and RU/EN calendar labels. |
+| `permissions` | Exactly the approved downloads permission; rejection of extra, host, optional and experiment permissions. |
 | `migrations` | Migration chain integrity, upgrade from version 0, dropping unreadable records, forward compatibility. |
 | `store` | Autosave debounce/coalescing, flush on note switch, no-op suppression, failure handling and retry, selection after delete, cancelling a queued write for a deleted note, filter/sort recomputation, and initial-selection restore (valid id / deleted id / nonsense id / id hidden by the restored filter / empty list). |
 | `preferences` | UI preference validation (unknown sort/colour/format, empty ids, non-objects), round-tripping through a fake `storage.local`, that the search query is not part of the stored shape, corrupt-record repair, and graceful degradation when storage throws or is absent. |
@@ -415,6 +419,7 @@ Node's built-in test runner. The suites cover:
 
 - manifest correctness, `__MSG_*__` resolution and locale completeness;
 - that the manifest version matches `package.json`;
+- that permissions are exactly `["downloads"]`, with no host or optional permissions;
 - that every asset referenced by the page or the CSS exists;
 - that the `[hidden]` reset rule is present;
 - that the Space icon files contain **no** context paint keyword, carry a literal
