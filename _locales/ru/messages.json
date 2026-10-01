@@ -346,5 +346,53 @@
   },
   "spaceRegisterError": {
     "message": "ThunderNotes не смог добавить кнопку в панель пространств: $1"
+  },
+  "createdDateLabel": {
+    "message": "Фильтр по дате"
+  },
+  "createdDateChooseMonthYear": { "message": "Выберите месяц и год" },
+  "createdDateYear": { "message": "Год" },
+  "createdDatePreviousYear": { "message": "Предыдущий год" },
+  "createdDateNextYear": { "message": "Следующий год" },
+  "createdDateBack": { "message": "Назад к календарю" },
+  "createdDateInvalidYear": { "message": "Введите год от 1 до 9999." },
+  "createdDateFrom": {
+    "message": "От"
+  },
+  "createdDateTo": {
+    "message": "До"
+  },
+  "createdDateReset": {
+    "message": "Сбросить даты"
+  },
+  "createdDateInvalid": {
+    "message": "Дата «От» должна быть не позже «До». Фильтр по дате не применяется."
+  },
+  "createdDatePrevious": {
+    "message": "Предыдущий месяц"
+  },
+  "createdDateNext": {
+    "message": "Следующий месяц"
+  },
+  "createdDateChooseStart": {
+    "message": "Выберите первую дату"
+  },
+  "createdDateChooseEnd": {
+    "message": "Выберите вторую дату"
+  },
+  "createdDateClose": {
+    "message": "Закрыть"
+  },
+  "dataExportSaving": {
+    "message": "Выберите, куда сохранить копию. Ожидаем завершения сохранения файла…"
+  },
+  "dataExportCancelled": {
+    "message": "Экспорт отменён."
+  },
+  "dataExportComplete": {
+    "message": "Копия сохранена (заметок: $1)."
+  },
+  "dataExportSaveError": {
+    "message": "Не удалось сохранить копию. Проверьте выбранную папку и попробуйте снова."
   }
 }

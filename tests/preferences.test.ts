@@ -36,6 +36,11 @@ describe("ui preferences: defaults", () => {
     // session, exactly as required.
     assert.ok(!("search" in DEFAULT_UI_PREFERENCES));
   });
+  it("does not restore created-date query fields from persisted preferences", () => {
+    const normalized = normalizeUiPreferences({ ...DEFAULT_UI_PREFERENCES, createdFrom: "2026-09-01", createdTo: "2026-09-30" });
+    assert.ok(!("createdFrom" in normalized));
+    assert.ok(!("createdTo" in normalized));
+  });
 });
 
 describe("ui preferences: normalizeUiPreferences", () => {

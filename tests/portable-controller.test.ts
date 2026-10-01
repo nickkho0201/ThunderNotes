@@ -80,6 +80,8 @@ describe("portable import controller: authoritative confirmation", () => {
     assert.equal(store.getSelectedId(), "selected");
     assert.deepEqual(store.getFilter(), {
       search: "match",
+      createdFrom: "",
+      createdTo: "",
       color: "blue",
       format: "all",
       sort: "updated-asc",

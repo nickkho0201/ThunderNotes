@@ -8,6 +8,48 @@ import type { NoteStoreOptions } from "../src/ui/store.ts";
 import { note } from "./helpers.ts";
 import type { Note } from "../src/notes/model.ts";
 
+describe("delete persistence safety", () => {
+  it("does not resurrect a deleted note after an in-flight autosave failure", async () => {
+    const repository = new MemoryNotesRepository();
+    await repository.create(note({ id: "a", content: "original" }));
+    let rejectWrite!: (error: Error) => void;
+    let updates = 0;
+    repository.update = async () => { updates++; await new Promise<void>((_resolve, reject) => { rejectWrite = reject; }); };
+    const store = new NoteStore(repository, { autosaveDelayMs: 0, onError: () => {} });
+    await store.init(); store.select("a");
+    store.updateSelected({ content: "pending" }); store.flushPending();
+    const deletion = store.deleteNote("a");
+    rejectWrite(new Error("late save failure"));
+    await deletion;
+    await new Promise((resolve) => setTimeout(resolve, 0));
+    store.flushPending();
+    await store.withMutationLock(async (session) => session.writeBarrier());
+    assert.equal(updates, 1);
+    assert.equal(await repository.get("a"), null);
+    assert.equal(store.getSelectedNote(), null);
+    store.dispose();
+  });
+  it("orders confirmed deletion after a slow successful write and tracks it in the barrier", async () => {
+    const repository = new MemoryNotesRepository();
+    await repository.create(note({ id: "a" }));
+    const nativeUpdate = repository.update.bind(repository);
+    let release!: () => void;
+    repository.update = async (value) => {
+      await new Promise<void>((resolve) => { release = resolve; });
+      await nativeUpdate(value);
+    };
+    const store = new NoteStore(repository, { autosaveDelayMs: 0 });
+    await store.init(); store.select("a");
+    store.updateSelected({ content: "late success" }); store.flushPending();
+    const deletion = store.deleteNote("a");
+    release();
+    await store.withMutationLock(async (session) => session.writeBarrier());
+    await deletion;
+    assert.equal(await repository.get("a"), null);
+    store.dispose();
+  });
+});
+
 /** Repository that records calls, to assert on persistence behaviour. */
 class SpyRepository implements NotesRepository {
   readonly info = { kind: "memory", schemaVersion: 1 } as const;

@@ -3,7 +3,8 @@ import {
   commitConfirmedImport,
   createImportPreview,
 } from "../portable/import-controller";
-import { decodePortableFile, createBackupFilename, downloadPortableData } from "../portable/file";
+import { decodePortableFile, createBackupFilename, downloadPortableData, BackupSaveError } from "../portable/file";
+import type { DownloadResult } from "../portable/file";
 import { planImport } from "../portable/import-plan";
 import type { ConflictPolicy, ImportPlan, PortableDataV1 } from "../portable/types";
 import type { Note } from "../notes/model";
@@ -17,7 +18,7 @@ export interface DataDialogOptions {
   appVersion: string;
   onMessage(message: string): void;
   confirm?: (message: string) => boolean;
-  download?: (text: string, filename: string) => void;
+  download?: (text: string, filename: string) => Promise<DownloadResult>;
 }
 
 function requireInside<T extends HTMLElement>(root: ParentNode, id: string): T {
@@ -95,11 +96,11 @@ export class DataDialog {
 
   private bind(): void {
     for (const button of this.closeButtons) button.addEventListener("click", () => this.close());
-    this.exportButton.addEventListener("click", () => this.exportBackup(false));
+    this.exportButton.addEventListener("click", () => void this.exportBackup(false));
     this.fileInput.addEventListener("change", () => void this.readSelectedFile());
     this.conflictPolicy.addEventListener("change", () => this.refreshMergePreview());
     this.importButton.addEventListener("click", () => void this.commitMerge());
-    this.safetyButton.addEventListener("click", () => this.exportBackup(true));
+    this.safetyButton.addEventListener("click", () => void this.exportBackup(true));
     this.safetyAcknowledge.addEventListener("change", () => this.syncRestoreButton());
     this.restoreButton.addEventListener("click", () => void this.commitRestore());
   }
@@ -140,19 +141,29 @@ export class DataDialog {
     this.renderRestoreSource();
   }
 
-  private createDownload(): { filename: string; noteCount: number; planSnapshot: readonly Note[] } {
+  private async createDownload(): Promise<{ filename: string; noteCount: number; planSnapshot: readonly Note[]; outcome: DownloadResult }> {
     const exportedAt = new Date();
     const snapshot = this.options.store.getNoteSnapshot();
     const text = encodePortableData(snapshot, this.options.appVersion, exportedAt);
     const filename = createBackupFilename(exportedAt);
-    (this.options.download ?? downloadPortableData)(text, filename);
-    return { filename, noteCount: snapshot.length, planSnapshot: snapshot };
+    const outcome = await (this.options.download ?? downloadPortableData)(text, filename);
+    return { filename, noteCount: snapshot.length, planSnapshot: snapshot, outcome };
   }
 
-  private exportBackup(forRestore: boolean): void {
+  private async exportBackup(forRestore: boolean): Promise<void> {
+    if (this.busy) return;
+    const target = forRestore ? this.safetyStatus : this.exportStatus;
+    if (forRestore) this.invalidateSafetyBackup();
+    this.setBusy(true);
+    target.textContent = t("dataExportSaving");
     try {
-      const result = this.createDownload();
-      const status = t("dataDownloadStarted", [result.filename, String(result.noteCount)]);
+      const result = await this.createDownload();
+      if (result.outcome === "cancelled") {
+        target.textContent = t("dataExportCancelled");
+        return;
+      }
+      // Save As may rename the file; do not report the suggested name as actual.
+      const status = t("dataExportComplete", String(result.noteCount));
       if (!forRestore) {
         this.exportStatus.textContent = status;
         return;
@@ -170,7 +181,10 @@ export class DataDialog {
       this.renderRestoreSummary();
       this.syncRestoreButton();
     } catch (error) {
-      this.options.onMessage(t("dataExportError", localizePortableError(error)));
+      target.textContent = error instanceof BackupSaveError
+        ? t("dataExportSaveError") : t("dataExportError", localizePortableError(error));
+    } finally {
+      this.setBusy(false);
     }
   }
 

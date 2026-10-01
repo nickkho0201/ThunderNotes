@@ -41,19 +41,53 @@ in [Testing](#testing).
 - **Plain Text** and **Markdown** editing modes (the stored text is never
   converted when you switch), with an Edit/Preview toggle and rendered
   headings, bold, italic, lists, code, blockquotes, links and tables.
+- Existing Markdown notes open in Preview; Plain Text and new notes open in Edit.
+  Changing the current note from Plain Text to Markdown keeps Edit active.
+  Double-clicking the empty Preview background enters Edit; rendered content
+  and active text selections retain normal Preview interaction.
+- In a focused Markdown textarea, Ctrl/Cmd+B, I and backtick toggle exact,
+  immediately surrounding bold, italic and inline-code delimiters; selecting the
+  whole isolated construct also removes them. Ambiguous marker runs are wrapped
+  conservatively. Ctrl/Cmd+K continues to insert links. Enter continues indented
+  bullet, numbered and
+  task-list source; Enter on an empty item exits the list. Brackets, parentheses
+  and backticks pair at text boundaries or around selected text. Only tracked,
+  automatically inserted closing characters are skipped when typed again.
+  Editing commands preserve native undo when supported, with `setRangeText` as
+  a fallback whose undo behavior needs manual Thunderbird verification.
+  Inserting an ordered item renumbers later same-level siblings of the same
+  marker type within the continuous block; nested lists keep their own numbers.
+  Explicit whole-item deletion or a boundary merge also shifts subsequent
+  consecutive siblings back. Partial edits and ambiguous numbering stay native;
+  deleting an item with an unselected nested subtree is left to native editing.
+  Tab in Markdown Edit inserts four spaces at a plain caret, indents an entire
+  list-item line, or indents all selected lines. Shift+Tab removes up to four
+  leading spaces per affected line (or one legacy leading tab). Selections and
+  scroll position are preserved; Plain Text and controls retain native Tab navigation.
 - Seven-way colour marking (none + six colours) shown as a compact leading strip
   in the list — never as a full background.
 - **Live search** across the whole note content, case-insensitive.
 - **Portable Data v1** full backups as readable UTF-8 JSON, with strict import,
   non-destructive Merge conflict policies, and safety-gated Restore / Replace.
   Export uses the current in-memory note state, including pending edits.
+  Export always opens the system Save As dialog through the Downloads API and
+  reports success only after download completion; cancelling is neutral.
 - **Colour filter** combined with search.
+- **Created date range** in one compact toolbar control. Its calendar popover
+  selects the range with two clicks in either order, supports month navigation
+  and a clickable heading with direct year entry and a twelve-month grid,
+  highlights endpoints/interior/today, and offers a dedicated reset. Dates are
+  inclusive local calendar days. It combines with search, colour and the existing
+  format query. Dates reset on reopening and may be cleared
+  when creating a note to keep the new note visible.
 - **Four sort orders**: created newest/oldest first, updated newest/oldest first
   (default: created, newest first). Each row shows the timestamp of the field the
   list is **currently sorted by** — `Created` for a creation sort, `Edited` for a
   modification sort — so the visible date always explains the visible order. The
   sort *direction* never changes which timestamp is shown.
 - Delete confirmation, and a sensible neighbouring note is selected afterwards.
+- Delete also requests that same confirmation while the list or selected row
+  has keyboard focus. Editor, Preview and other controls never trigger it.
 
 **Interface**
 - Two-pane layout: the note list on the left, the editor on the right, a compact
@@ -92,7 +126,7 @@ convention. Below a narrow window the app switches from two panes to a
 | **900–1040 px** | Two panes. The list narrows (base 260 px, max 40%), toolbars may wrap onto a second row. |
 | **780–900 px** | Two panes. The list narrows further (232 px), control labels collapse to icons (the `title`/`aria-label` attributes remain), and the editor bar wraps. |
 | **< 780 px** | **Single pane.** The list is shown first; selecting a note (or pressing "New note") replaces it with the editor, which gains a **back** button. Escape also returns to the list. |
-| **< 520 px** | The toolbar takes two rows: the search field gets its own full-width row. |
+| **< 520 px** | The toolbar wraps: search gets a full-width row, and date controls wrap as needed. |
 
 Why 780 px: that is where the editor pane would fall below roughly 480 px of
 usable width, the point at which the editor's controls start competing with the
@@ -123,6 +157,7 @@ Deliberately **not** persisted:
 
 - the **search query**. It lives in the session only, so it survives while the
   space tab is open and resets when the tab is closed.
+- the **created date range** follows the same session lifetime.
 
 On reopening ThunderNotes the sort and filter are restored, and the previous note
 is reselected **only if it still exists and is visible under the restored
@@ -270,6 +305,12 @@ What ThunderNotes does **not** do:
 - no third-party code fetched at runtime (the single dependency, `marked`, is
   bundled into the XPI).
 
+The only manifest permission is **downloads**, used for explicit local backup
+Save As and completion tracking. It also grants the platform's download-history
+capability; ThunderNotes queries only the ID of its own active backup. There are
+no host, optional, cloud/account or network permissions. The artifact verifier
+rejects every permission set other than exactly `["downloads"]`.
+
 If IndexedDB cannot be opened (for example in a restricted profile), ThunderNotes
 keeps working for the current session with in-memory storage and shows a warning
 banner that the notes will not be saved.
@@ -350,7 +391,7 @@ URLs, control-character-obfuscated schemes, and unknown tags.
 ## Testing
 
 `pnpm test` builds the extension and the test bundles with esbuild, then runs
-Node's built-in test runner. There are **353 tests** across 19 files:
+Node's built-in test runner. The suites cover:
 
 | Suite | Covers |
 | --- | --- |
@@ -415,8 +456,10 @@ These are the first things to check when installing the XPI manually.
 These are real and deliberate, not oversights:
 
 1. **Backup/import is user-initiated.** ThunderNotes does not automatically sync
-   backups or choose a storage destination. The browser download UI owns the
-   final file destination after ThunderNotes starts a backup download.
+   backups or choose a storage destination. Every export opens system Save As;
+   the user chooses the folder/name, and completion is reported by Downloads API.
+   Keep the ThunderNotes page open until saving finishes: Blob URLs belong to
+   their page context. Closing/unloading that page can interrupt an active export.
 2. **Theme detection has three tiers, not one guaranteed signal.** Thunderbird's
    built-in Light and Dark themes declare `properties.color_scheme`, which is
    detected exactly. For third-party themes that only set colours,

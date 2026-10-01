@@ -25,6 +25,8 @@ import { EN_MESSAGES } from "../src/i18n/fallback-messages.ts";
 import { t } from "../src/i18n/index.ts";
 import type { ThunderbirdBrowser } from "../src/api/browser.ts";
 import { NoteStore } from "../src/ui/store.ts";
+import { bindListDelete, createDeleteRequest } from "../src/ui/delete-request.ts";
+import { bindCreatedDateFilter } from "../src/ui/date-filter.ts";
 import { NotesListView } from "../src/ui/list-view.ts";
 import { EditorView } from "../src/ui/editor-view.ts";
 import { openNotesRepository } from "../src/storage/indexeddb.ts";
@@ -164,6 +166,10 @@ function loadPageHtml(): string {
 const REQUIRED_IDS = [
   "tn-search",
   "tn-search-clear",
+  "tn-date-filter",
+  "tn-date-trigger",
+  "tn-date-popover",
+  "tn-date-reset",
   "tn-color-filter",
   "tn-sort",
   "tn-data",
@@ -420,7 +426,7 @@ describe("ui: editor view behaviour", () => {
     // must show that even though no click happened this time.
     view.render(note({ id: "other", format: "markdown", content: "# Other" }));
     const editButton = dom.document.querySelector("#tn-md-mode [data-mode=edit]") as HTMLElement;
-    assert.equal(editButton.getAttribute("aria-pressed"), "true", "a fresh note starts in edit mode");
+    assert.equal(editButton.getAttribute("aria-pressed"), "false", "an existing Markdown note opens in preview");
 
     view.render(markdown);
     assert.equal(previewButton.getAttribute("aria-pressed"), "true", "the remembered pane must be reflected");
@@ -763,8 +769,438 @@ async function wireIntegration(seed: Note[] = [], initialFilter: Partial<NotesFi
 
   renderList();
   renderEditor();
-  return { dom, store, editorView, listView };
+  return { dom, store, editorView, listView, repository };
 }
+
+describe("ui: UX and Markdown polish", () => {
+  async function setup(content = "", format: "plain" | "markdown" = "markdown") {
+    const wired = await wireIntegration([note({ id: "a", content, format }), note({ id: "b" })]);
+    const { dom, store } = wired;
+    store.select("a");
+    const textarea = dom.document.getElementById("tn-textarea") as HTMLTextAreaElement;
+    // linkedom has no selection/focus/range editing implementation. These shims
+    // exercise our event wiring, not browser undo or native editing behavior.
+    Object.defineProperty(dom.document, "activeElement", { configurable: true, writable: true, value: textarea });
+    textarea.setSelectionRange = (start, end, direction = "none") => { textarea.selectionStart = start ?? 0; textarea.selectionEnd = end ?? 0; textarea.selectionDirection = direction; };
+    textarea.setRangeText = (text: string, start: number = textarea.selectionStart, end: number = textarea.selectionEnd) => {
+      textarea.value = textarea.value.slice(0, start) + text + textarea.value.slice(end);
+    };
+    textarea.setSelectionRange(content.length, content.length);
+    const clickMode = (mode: string) => dom.document.querySelector(`#tn-md-mode [data-mode=${mode}]`)!.dispatchEvent(new dom.window.Event("click", { bubbles: true }));
+    const key = (target: HTMLElement, name: string, extra = {}) => {
+      const event = new dom.window.Event("keydown", { bubbles: true, cancelable: true });
+      Object.assign(event, { key: name, ctrlKey: false, metaKey: false, shiftKey: false, altKey: false, ...extra });
+      target.dispatchEvent(event);
+      return event;
+    };
+    const focus = (target: HTMLElement) => Object.defineProperty(dom.document, "activeElement", { configurable: true, writable: true, value: target });
+    const cleanup = () => { wired.store.dispose(); wired.listView.dispose(); dom.cleanup(); };
+    return { ...wired, textarea, clickMode, key, focus, cleanup };
+  }
+
+  it("Tab is one native editor mutation with selection/scroll, revision, autosave and Preview", async () => {
+    const before = "- one\n- two", after = "    - one\n    - two";
+    const h = await setup(before);
+    try {
+      h.clickMode("edit"); h.textarea.setSelectionRange(0, before.length, "backward");
+      h.textarea.scrollTop = 120; h.textarea.scrollLeft = 15;
+      let inputs = 0, mutations = 0;
+      h.textarea.addEventListener("input", () => inputs++);
+      h.dom.document.execCommand = (command, _ui, text) => {
+        assert.equal(command, "insertText"); mutations++; h.textarea.setRangeText(text!);
+        h.textarea.scrollTop = 0; h.textarea.scrollLeft = 0;
+        h.textarea.dispatchEvent(new h.dom.window.Event("input")); return true;
+      };
+      const revision = h.store.getSelectedNote()!.revision;
+      const timestamp = h.store.getSelectedNote()!.updatedAt;
+      assert.equal(h.key(h.textarea, "Tab").defaultPrevented, true);
+      assert.equal(h.textarea.value, after); assert.equal(inputs, 1); assert.equal(mutations, 1);
+      assert.equal(h.textarea.selectionStart, 4); assert.equal(h.textarea.selectionEnd, after.length);
+      assert.equal(h.textarea.selectionDirection, "backward");
+      assert.equal(h.textarea.scrollTop, 120); assert.equal(h.textarea.scrollLeft, 15);
+      assert.equal(h.store.getSelectedNote()!.revision, revision + 1);
+      assert.ok(h.store.getSelectedNote()!.updatedAt >= timestamp);
+      h.store.flushPending(); await new Promise((resolve) => setTimeout(resolve, 0));
+      assert.equal((await h.repository.get("a"))!.content, after);
+      h.store.select("b"); h.store.select("a");
+      assert.equal(h.textarea.value, after); assert.equal(h.textarea.hidden, true);
+      assert.ok(h.dom.document.getElementById("tn-preview")!.querySelector("pre code"));
+      h.clickMode("edit");
+      // Native history emits input; the actual undo stack needs Thunderbird QA.
+      for (const content of [before, after]) {
+        h.textarea.value = content; h.textarea.dispatchEvent(new h.dom.window.Event("input"));
+        assert.equal(h.store.getSelectedNote()!.content, content);
+      }
+      h.textarea.setSelectionRange(4, after.length, "backward");
+      h.key(h.textarea, "Tab", { shiftKey: true }); assert.equal(h.textarea.value, before);
+    } finally { h.cleanup(); }
+  });
+  it("Tab inserts at a plain caret; no-op Shift+Tab retains focus without a write", async () => {
+    const h = await setup("sometext");
+    try {
+      h.clickMode("edit"); h.textarea.setSelectionRange(4, 4);
+      const revision = h.store.getSelectedNote()!.revision;
+      assert.equal(h.key(h.textarea, "Tab", { shiftKey: true }).defaultPrevented, true);
+      assert.equal(h.store.getSelectedNote()!.revision, revision);
+      assert.equal(h.textarea.selectionStart, 4);
+      assert.equal(h.key(h.textarea, "Tab").defaultPrevented, true);
+      assert.equal(h.textarea.value, "some    text"); assert.equal(h.textarea.selectionStart, 8);
+      assert.equal(h.dom.document.activeElement, h.textarea);
+    } finally { h.cleanup(); }
+  });
+  it("never intercepts Tab/Shift+Tab in Preview, Plain, other controls or composition", async () => {
+    const h = await setup("- item");
+    try {
+      for (const shiftKey of [false, true]) assert.equal(h.key(h.textarea, "Tab", { shiftKey }).defaultPrevented, false);
+      h.clickMode("edit");
+      for (const id of ["tn-search", "tn-list", "tn-preview", "tn-delete", "tn-date-trigger", "tn-data-dialog"]) {
+        const target = h.dom.document.getElementById(id)!; assert.ok(target, id); h.focus(target);
+        for (const shiftKey of [false, true]) {
+          assert.equal(h.key(target, "Tab", { shiftKey }).defaultPrevented, false);
+          assert.equal(h.key(h.textarea, "Tab", { shiftKey }).defaultPrevented, false);
+        }
+      }
+      h.focus(h.textarea);
+      for (const extra of [{ isComposing: true }, { keyCode: 229 }, { altKey: true }, { ctrlKey: true }, { metaKey: true }]) {
+        for (const shiftKey of [false, true]) assert.equal(h.key(h.textarea, "Tab", { shiftKey, ...extra }).defaultPrevented, false);
+      }
+      h.textarea.dispatchEvent(new h.dom.window.Event("compositionstart"));
+      assert.equal(h.key(h.textarea, "Tab").defaultPrevented, false);
+      h.textarea.dispatchEvent(new h.dom.window.Event("compositionend"));
+      h.store.updateSelected({ format: "plain" });
+      for (const shiftKey of [false, true]) assert.equal(h.key(h.textarea, "Tab", { shiftKey }).defaultPrevented, false);
+      assert.equal(h.textarea.value, "- item");
+    } finally { h.cleanup(); }
+  });
+
+  it("deletes a complete ordered item with one native edit, caret, autosave and undo/redo input", async () => {
+    const before = "1. One\n2. Two\n3. Temporary\n4. Three\n5. Four";
+    const after = "1. One\n2. Two\n3. Three\n4. Four";
+    const h = await setup(before);
+    try {
+      h.clickMode("edit"); h.textarea.setSelectionRange(before.indexOf("3"), before.indexOf("4"));
+      let mutations = 0, inputs = 0;
+      h.textarea.addEventListener("input", () => inputs++);
+      h.dom.document.execCommand = (command, _ui, text) => {
+        assert.equal(command, "insertText"); mutations++; h.textarea.setRangeText(text!);
+        h.textarea.dispatchEvent(new h.dom.window.Event("input")); return true;
+      };
+      const revision = h.store.getSelectedNote()!.revision;
+      assert.equal(h.key(h.textarea, "Delete").defaultPrevented, true);
+      assert.equal(mutations, 1); assert.equal(inputs, 1);
+      assert.equal(h.textarea.value, after); assert.equal(h.textarea.selectionStart, 14);
+      assert.equal(h.store.getSelectedNote()!.revision, revision + 1);
+      h.store.flushPending(); await new Promise((resolve) => setTimeout(resolve, 0));
+      assert.equal((await h.repository.get("a"))!.content, after);
+      // Simulate native history input; headless DOM has no browser undo stack.
+      for (const content of [before, after]) {
+        h.textarea.value = content; h.textarea.dispatchEvent(new h.dom.window.Event("input"));
+        assert.equal(h.store.getSelectedNote()!.content, content);
+      }
+      h.clickMode("preview"); assert.match(h.dom.document.getElementById("tn-preview")!.textContent!, /Three/);
+    } finally { h.cleanup(); }
+  });
+  it("leaves partial deletion, composition, Plain and non-editor contexts native", async () => {
+    const h = await setup("1. One\n2. Two\n3. Three");
+    try {
+      h.clickMode("edit"); h.textarea.setSelectionRange(11, 11);
+      assert.equal(h.key(h.textarea, "Backspace").defaultPrevented, false);
+      h.textarea.setSelectionRange(7, 14);
+      assert.equal(h.key(h.textarea, "Delete", { isComposing: true }).defaultPrevented, false);
+      const search = h.dom.document.getElementById("tn-search")!; h.focus(search);
+      assert.equal(h.key(h.textarea, "Delete").defaultPrevented, false);
+      h.focus(h.textarea); h.store.updateSelected({ format: "plain" });
+      assert.equal(h.key(h.textarea, "Delete").defaultPrevented, false);
+    } finally { h.cleanup(); }
+  });
+  it("switches only empty Preview background double-click to Edit, preserves reopen/button behavior", async () => {
+    const h = await setup("# Heading\n\nText");
+    try {
+      const preview = h.dom.document.getElementById("tn-preview")!;
+      Object.defineProperty(h.dom.document, "getSelection", { configurable: true, value: () => ({ isCollapsed: true }) });
+      preview.dispatchEvent(new h.dom.window.Event("click", { bubbles: true })); assert.equal(h.textarea.hidden, true);
+      preview.dispatchEvent(new h.dom.window.Event("dblclick", { bubbles: true })); assert.equal(h.textarea.hidden, false);
+      assert.equal(h.textarea.selectionStart, h.textarea.value.length);
+      h.store.select("b"); h.store.select("a"); assert.equal(h.textarea.hidden, true);
+      h.clickMode("edit"); assert.equal(h.textarea.hidden, false);
+      h.store.updateSelected({ format: "plain" });
+      preview.dispatchEvent(new h.dom.window.Event("dblclick", { bubbles: true })); assert.equal(h.textarea.hidden, false);
+    } finally { h.cleanup(); }
+  });
+  for (const selector of ["p", "h1", "a", "li", "code", "pre", "blockquote", "strong", "table"]) {
+    it(`retains Preview on double-click of rendered ${selector}`, async () => {
+      const h = await setup("# Heading\n\nParagraph **bold** and [link](https://example.com) and `code`\n\n- item\n\n```\nblock\n```\n\n> quote\n\n| a | b |\n|---|---|\n| c | d |");
+      try {
+        const preview = h.dom.document.getElementById("tn-preview")!;
+        Object.defineProperty(h.dom.document, "getSelection", { configurable: true, value: () => ({ isCollapsed: true }) });
+        const element = preview.querySelector(selector); assert.ok(element);
+        element.dispatchEvent(new h.dom.window.Event("dblclick", { bubbles: true }));
+        assert.equal(h.textarea.hidden, true);
+      } finally { h.cleanup(); }
+    });
+  }
+  it("retains Preview with active text selection, no note or a hidden surface", async () => {
+    const h = await setup("Text");
+    try {
+      const preview = h.dom.document.getElementById("tn-preview")!;
+      Object.defineProperty(h.dom.document, "getSelection", { configurable: true, value: () => ({ isCollapsed: false }) });
+      preview.dispatchEvent(new h.dom.window.Event("dblclick", { bubbles: true })); assert.equal(h.textarea.hidden, true);
+      h.editorView.reset(); preview.dispatchEvent(new h.dom.window.Event("dblclick", { bubbles: true }));
+      assert.equal(preview.hidden, true);
+    } finally { h.cleanup(); }
+  });
+
+  it("opens existing Markdown in preview, preserves Edit through updates, and reopens in preview", async () => {
+    const h = await setup("# Title");
+    try {
+      assert.equal(h.textarea.hidden, true);
+      h.clickMode("edit");
+      h.store.updateSelected({ color: "blue" });
+      assert.equal(h.textarea.hidden, false);
+      h.store.select("b"); h.store.select("a");
+      assert.equal(h.textarea.hidden, true);
+    } finally { h.cleanup(); }
+  });
+  it("opens Plain/new notes in Edit and keeps Plain → Markdown conversion in Edit", async () => {
+    const h = await setup("text", "plain");
+    try {
+      assert.equal(h.textarea.hidden, false);
+      h.store.updateSelected({ format: "markdown" });
+      assert.equal(h.textarea.hidden, false);
+      h.store.select("b"); h.store.select("a");
+      assert.equal(h.textarea.hidden, true);
+      const created = await h.store.createNote();
+      assert.equal(created.format, "plain");
+      assert.equal(h.textarea.hidden, false);
+    } finally { h.cleanup(); }
+  });
+
+  for (const [key, expected, start, end] of [["b", "**word**", 2, 6], ["i", "*word*", 1, 5], ["k", "[word](url)", 1, 5], ["`", "`word`", 1, 5]] as const) {
+    it(`editor Ctrl+${key} wraps selection, updates revision, preview and autosave`, async () => {
+      const h = await setup("word");
+      try {
+        h.clickMode("edit"); h.textarea.setSelectionRange(0, 4);
+        const revision = h.store.getSelectedNote()!.revision;
+        assert.equal(h.key(h.textarea, key, { ctrlKey: true }).defaultPrevented, true);
+        assert.equal(h.store.getSelectedNote()!.content, expected);
+        assert.equal(h.store.getSelectedNote()!.revision, revision + 1);
+        assert.equal(h.textarea.selectionStart, start); assert.equal(h.textarea.selectionEnd, end);
+        h.store.flushPending();
+        await new Promise((resolve) => setTimeout(resolve, 0));
+        assert.equal((await h.repository.get("a"))!.content, expected);
+        h.clickMode("preview");
+        assert.match(h.dom.document.getElementById("tn-preview")!.textContent!, /word/);
+      } finally { h.cleanup(); }
+    });
+  }
+  it("inserts at the caret with Cmd and passes through native input/undo changes", async () => {
+    const h = await setup();
+    try {
+      h.clickMode("edit");
+      h.key(h.textarea, "k", { metaKey: true });
+      assert.equal(h.textarea.value, "[](url)"); assert.equal(h.textarea.selectionStart, 1);
+      // Native undo emits input; real undo stack remains a Thunderbird QA gate.
+      h.textarea.value = ""; h.textarea.dispatchEvent(new h.dom.window.Event("input"));
+      assert.equal(h.store.getSelectedNote()!.content, "");
+    } finally { h.cleanup(); }
+  });
+  for (const name of ["b", "i", "`"]) {
+    it(`editor ${name} toggles inner/whole selection through input, revision and autosave`, async () => {
+      const h = await setup("word");
+      try {
+        h.clickMode("edit"); h.textarea.setSelectionRange(0, 4);
+        const revision = h.store.getSelectedNote()!.revision;
+        h.key(h.textarea, name, { ctrlKey: true });
+        const formatted = h.textarea.value;
+        h.key(h.textarea, name, { ctrlKey: true });
+        assert.equal(h.textarea.value, "word");
+        assert.equal(h.textarea.selectionStart, 0); assert.equal(h.textarea.selectionEnd, 4);
+        h.key(h.textarea, name, { ctrlKey: true }); h.textarea.setSelectionRange(0, h.textarea.value.length);
+        h.key(h.textarea, name, { ctrlKey: true });
+        assert.equal(h.store.getSelectedNote()!.content, "word");
+        assert.equal(h.store.getSelectedNote()!.revision, revision + 4);
+        h.textarea.value = formatted; h.textarea.dispatchEvent(new h.dom.window.Event("input"));
+        assert.equal(h.store.getSelectedNote()!.content, formatted);
+        h.store.flushPending(); await new Promise((resolve) => setTimeout(resolve, 0));
+        assert.equal((await h.repository.get("a"))!.content, formatted);
+      } finally { h.cleanup(); }
+    });
+  }
+  it("renumbers ordered siblings as one store edit and never pairs curly braces", async () => {
+    const h = await setup("1. First\n2. Second\n3. Third\n4. Fourth");
+    try {
+      h.clickMode("edit"); h.textarea.setSelectionRange(18, 18);
+      const revision = h.store.getSelectedNote()!.revision;
+      h.key(h.textarea, "Enter");
+      assert.equal(h.textarea.value, "1. First\n2. Second\n3. \n4. Third\n5. Fourth");
+      assert.equal(h.store.getSelectedNote()!.revision, revision + 1);
+      assert.equal(h.textarea.selectionStart, 22);
+      assert.equal(h.key(h.textarea, "{", { shiftKey: true }).defaultPrevented, false);
+    } finally { h.cleanup(); }
+  });
+  it("row activation keeps Preview and consecutive backticks permit a code fence", async () => {
+    const h = await setup();
+    try {
+      h.editorView.focusOpened(); assert.equal(h.textarea.hidden, true);
+      h.clickMode("edit");
+      h.key(h.textarea, "`"); h.key(h.textarea, "`");
+      assert.equal(h.textarea.value, "``"); assert.equal(h.textarea.selectionStart, 2);
+      assert.equal(h.key(h.textarea, "`").defaultPrevented, false);
+    } finally { h.cleanup(); }
+  });
+  it("uses a native insertText result without duplicate input notification", async () => {
+    const h = await setup();
+    try {
+      h.clickMode("edit");
+      let inputs = 0;
+      h.textarea.addEventListener("input", () => inputs++);
+      h.dom.document.execCommand = (_command, _ui, text) => {
+        h.textarea.setRangeText(text!);
+        h.textarea.dispatchEvent(new h.dom.window.Event("input"));
+        return true;
+      };
+      h.key(h.textarea, "b", { ctrlKey: true });
+      assert.equal(h.textarea.value, "****"); assert.equal(inputs, 1);
+    } finally { h.cleanup(); }
+  });
+  it("recognizes the physical Markdown chord on a Russian keyboard layout", async () => {
+    const h = await setup();
+    try {
+      h.clickMode("edit");
+      h.key(h.textarea, "и", { ctrlKey: true, code: "KeyB" });
+      assert.equal(h.textarea.value, "****"); assert.equal(h.textarea.selectionStart, 2);
+    } finally { h.cleanup(); }
+  });
+  it("does not intercept outside editor, in Plain/Preview, AltGr or during IME", async () => {
+    const h = await setup("text");
+    try {
+      assert.equal(h.key(h.textarea, "b", { ctrlKey: true }).defaultPrevented, false);
+      h.clickMode("edit");
+      const search = h.dom.document.getElementById("tn-search") as HTMLElement;
+      h.focus(search);
+      assert.equal(h.key(h.textarea, "b", { ctrlKey: true }).defaultPrevented, false);
+      assert.equal(h.key(search, "b", { ctrlKey: true }).defaultPrevented, false);
+      h.focus(h.textarea);
+      for (const extra of [{ isComposing: true }, { keyCode: 229 }, { altKey: true }]) {
+        assert.equal(h.key(h.textarea, "b", { ctrlKey: true, ...extra }).defaultPrevented, false);
+      }
+      h.textarea.dispatchEvent(new h.dom.window.Event("compositionstart"));
+      assert.equal(h.key(h.textarea, "[" ).defaultPrevented, false);
+      h.textarea.dispatchEvent(new h.dom.window.Event("compositionend"));
+      h.store.updateSelected({ format: "plain" });
+      assert.equal(h.key(h.textarea, "b", { ctrlKey: true }).defaultPrevented, false);
+    } finally { h.cleanup(); }
+  });
+  for (const [open, close] of [["[", "]"], ["(", ")"], ["`", "`"]]) {
+    it(`pairs ${open}, tracks typed content and skips its own closing character`, async () => {
+      const h = await setup();
+      try {
+        h.clickMode("edit");
+        h.key(h.textarea, open!, { shiftKey: open === "(" });
+        assert.equal(h.textarea.value, open! + close!); assert.equal(h.textarea.selectionStart, 1);
+        h.textarea.setRangeText("x", 1, 1); h.textarea.setSelectionRange(2, 2);
+        h.textarea.dispatchEvent(new h.dom.window.Event("input"));
+        assert.equal(h.key(h.textarea, close!, { shiftKey: close === ")" }).defaultPrevented, true);
+        assert.equal(h.textarea.value, open! + "x" + close!); assert.equal(h.textarea.selectionStart, 3);
+      } finally { h.cleanup(); }
+    });
+  }
+  it("preserves selection when pairing and does not skip manually existing closings", async () => {
+    const h = await setup("word)");
+    try {
+      h.clickMode("edit"); h.textarea.setSelectionRange(0, 4);
+      h.key(h.textarea, "[");
+      assert.equal(h.textarea.value, "[word])"); assert.equal(h.textarea.selectionStart, 1); assert.equal(h.textarea.selectionEnd, 5);
+      h.textarea.setSelectionRange(6, 6);
+      assert.equal(h.key(h.textarea, ")", { shiftKey: true }).defaultPrevented, false);
+      h.textarea.setSelectionRange(2, 2);
+      assert.equal(h.key(h.textarea, "(", { shiftKey: true }).defaultPrevented, false);
+    } finally { h.cleanup(); }
+  });
+  it("continues lists through the store and leaves ordinary Enter native", async () => {
+    const h = await setup("  - [x] done");
+    try {
+      h.clickMode("edit");
+      h.key(h.textarea, "Enter");
+      assert.equal(h.store.getSelectedNote()!.content, "  - [x] done\n  - [ ] ");
+      assert.equal(h.textarea.selectionStart, h.textarea.value.length);
+      h.key(h.textarea, "Enter");
+      assert.equal(h.textarea.value, "  - [x] done\n  ");
+      assert.equal(h.key(h.textarea, "Enter").defaultPrevented, false);
+    } finally { h.cleanup(); }
+  });
+
+  it("Delete in list confirms through shared workflow; Cancel keeps edits, Confirm deletes", async () => {
+    const h = await setup("draft", "plain");
+    try {
+      let confirmed = false, confirmations = 0;
+      const request = createDeleteRequest(h.store, () => { confirmations++; return confirmed; });
+      const list = h.dom.document.getElementById("tn-list") as HTMLElement;
+      bindListDelete(list, h.store, request);
+      h.store.updateSelected({ content: "pending edit" });
+      h.focus(list);
+      assert.equal(h.key(list, "Delete").defaultPrevented, true);
+      assert.equal(confirmations, 1); assert.equal(h.store.getSelectedNote()!.content, "pending edit");
+      h.store.flushPending(); await new Promise((resolve) => setTimeout(resolve, 0));
+      confirmed = true;
+      const row = list.querySelector('[data-id="a"]') as HTMLElement;
+      h.focus(row); h.key(row, "Delete");
+      assert.equal(confirmations, 2); assert.equal(h.store.getNotes().some(({ note }) => note.id === "a"), false);
+      assert.equal(request(), false, "pending deletion blocks another request");
+    } finally { h.cleanup(); }
+  });
+  it("Delete never handles textarea, controls, descendants, preview, repeats or locked mutations", async () => {
+    const h = await setup("draft", "plain");
+    try {
+      let confirmations = 0;
+      const request = createDeleteRequest(h.store, () => { confirmations++; return false; });
+      const list = h.dom.document.getElementById("tn-list") as HTMLElement;
+      bindListDelete(list, h.store, request);
+      const row = list.querySelector('[data-id="a"]') as HTMLElement;
+      for (const tag of ["input", "textarea", "select", "button", "a", "div"]) {
+        const target = h.dom.document.createElement(tag);
+        if (tag === "div") target.setAttribute("contenteditable", "true");
+        row.append(target); h.focus(target);
+        assert.equal(h.key(target, "Delete").defaultPrevented, false);
+      }
+      for (const id of ["tn-textarea", "tn-search", "tn-preview", "tn-delete"]) {
+        const target = h.dom.document.getElementById(id) as HTMLElement;
+        h.focus(target); assert.equal(h.key(target, "Delete").defaultPrevented, false);
+      }
+      h.focus(list);
+      for (const extra of [{ repeat: true }, { isComposing: true }, { ctrlKey: true }, { shiftKey: true }]) {
+        assert.equal(h.key(list, "Delete", extra).defaultPrevented, false);
+      }
+      await h.store.withMutationLock(async () => { assert.equal(h.key(list, "Delete").defaultPrevented, false); assert.equal(request(), false); });
+      assert.equal(confirmations, 0);
+    } finally { h.cleanup(); }
+  });
+  it("calendar applies two-click ranges, resets independently and follows fast capture", async () => {
+    const h = await setup("target");
+    try {
+      const root = h.dom.document.getElementById("tn-date-filter") as HTMLElement;
+      const trigger = h.dom.document.getElementById("tn-date-trigger") as HTMLButtonElement;
+      const popover = h.dom.document.getElementById("tn-date-popover") as HTMLElement;
+      bindCreatedDateFilter({ root, trigger, popover, store: h.store, now: () => new Date(2026, 9, 1) });
+      trigger.click();
+      root.querySelector<HTMLButtonElement>('[data-date="2026-10-01"]')!.click();
+      assert.equal(h.store.getFilter().createdFrom, "");
+      root.querySelector<HTMLButtonElement>('[data-date="2026-10-02"]')!.click();
+      assert.equal(h.store.getFilter().createdFrom, "2026-10-01");
+      assert.equal(popover.hidden, true);
+      h.store.setSearch("target");
+      (root.querySelector("#tn-date-reset") as HTMLButtonElement).click();
+      assert.equal(h.store.getFilter().createdFrom, "");
+      assert.equal(h.store.getFilter().search, "target");
+      h.store.setCreatedDateRange("2000-01-01", "2000-01-01");
+      assert.equal(h.store.getVisible().length, 0);
+      await h.store.createNote();
+      assert.equal(h.store.getFilter().createdFrom, "");
+      assert.equal(trigger.textContent, t("createdDateLabel"));
+    } finally { h.cleanup(); }
+  });
+
+});
 
 describe("ui: store/view integration", () => {
   const wire = wireIntegration;

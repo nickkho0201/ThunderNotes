@@ -19,6 +19,8 @@ import type { Note, NoteColor, NoteFormat } from "../notes/model";
 import type { ColorFilter, SortKey } from "../notes/query";
 import { SORT_KEYS, isSortKey } from "../notes/query";
 import { DataDialog } from "./data-dialog";
+import { bindListDelete, createDeleteRequest } from "./delete-request";
+import { bindCreatedDateFilter } from "./date-filter";
 
 function requireElement<T extends HTMLElement>(id: string): T {
   const element = document.getElementById(id);
@@ -141,6 +143,9 @@ async function main(): Promise<void> {
   const deleteButton = requireElement<HTMLButtonElement>("tn-delete");
   const mainElement = requireElement<HTMLElement>("tn-main");
   const backButton = requireElement<HTMLButtonElement>("tn-back");
+  const dateRoot = requireElement<HTMLElement>("tn-date-filter");
+  const dateTrigger = requireElement<HTMLButtonElement>("tn-date-trigger");
+  const datePopover = requireElement<HTMLElement>("tn-date-popover");
 
   populateSortOptions(sortSelect);
 
@@ -223,6 +228,9 @@ async function main(): Promise<void> {
   };
 
   let editorView: EditorView;
+  const requestDelete = createDeleteRequest(store, (message) => window.confirm(message));
+  bindListDelete(listElement, store, requestDelete);
+  bindCreatedDateFilter({ root: dateRoot, trigger: dateTrigger, popover: datePopover, store });
 
   const listView = new NotesListView({
     listElement,
@@ -234,7 +242,7 @@ async function main(): Promise<void> {
     },
     onActivate: () => {
       if (isNarrow()) showEditorPane();
-      editorView.focus();
+      editorView.focusOpened();
     },
   });
 
@@ -258,17 +266,7 @@ async function main(): Promise<void> {
     onColorChange: (color) => {
       store.updateSelected({ color });
     },
-    onDelete: () => {
-      const note = store.getSelectedNote();
-      if (!note) return;
-      const excerpt = note.content.trim().split(/\r?\n/, 1)[0]?.slice(0, 60) ?? "";
-      const body = excerpt.length > 0
-        ? `${t("deleteConfirmMessage")}\n\n${excerpt}`
-        : t("deleteConfirmMessage");
-      if (window.confirm(`${t("deleteConfirmTitle")}\n\n${body}`)) {
-        void store.deleteNote(note.id);
-      }
-    },
+    onDelete: requestDelete,
   });
 
   // ----------------------------------------------------------------- persistence

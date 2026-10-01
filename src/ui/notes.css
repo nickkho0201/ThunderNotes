@@ -9,6 +9,41 @@
  * Density targets Thunderbird's own chrome: 13px UI text, compact 24-26px rows.
  * ------------------------------------------------------------------------- */
 
+.tn-date-filter {
+  position: relative;
+}
+.tn-date-filter > .is-active { background: var(--tn-selected); color: var(--tn-selected-text); }
+.tn-date-popover {
+  position: fixed;
+  z-index: 50;
+  width: 288px;
+  max-width: calc(100vw - 16px);
+  max-height: calc(100vh - 16px);
+  overflow: auto;
+  padding: 10px;
+  border: 1px solid var(--tn-border-strong);
+  border-radius: 6px;
+  background: var(--tn-panel-bg);
+  color: var(--tn-text);
+  box-shadow: var(--tn-shadow);
+}
+.tn-date-navigation { display: flex; align-items: center; justify-content: space-between; gap: 6px; }
+.tn-date-weekdays, .tn-date-days { display: grid; grid-template-columns: repeat(7, minmax(0, 1fr)); gap: 2px; }
+.tn-date-weekdays { margin-top: 8px; text-align: center; color: var(--tn-text-muted); font-size: 11px; }
+.tn-date-day { border: 1px solid transparent; border-radius: 4px; height: 30px; background: transparent; color: var(--tn-text); cursor: pointer; }
+.tn-date-day.is-other-month { color: var(--tn-text-muted); }
+.tn-date-day.is-between { background: var(--tn-selected); color: var(--tn-selected-text); }
+.tn-date-day.is-start, .tn-date-day.is-end { background: var(--button-primary-bg); color: var(--button-primary-fg); }
+.tn-date-day[aria-current="date"] { border-color: var(--tn-accent); }
+.tn-date-day:hover { box-shadow: inset 0 0 0 1px var(--tn-border-strong); }
+.tn-date-day:focus-visible { outline: 2px solid var(--tn-focus); outline-offset: -2px; }
+.tn-date-status { font-size: 12px; color: var(--tn-text-muted); margin: 8px 0; }
+.tn-date-months { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 4px; margin: 8px 0; }
+.tn-date-months .is-active { background: var(--tn-selected); color: var(--tn-selected-text); }
+.tn-date-months button:focus-visible, #tn-date-year:focus-visible { outline: 2px solid var(--tn-focus); outline-offset: -2px; }
+.tn-date-year-label { display: flex; align-items: center; gap: 6px; margin-top: 8px; }
+#tn-date-year { width: 80px; padding: 4px; border: 1px solid var(--tn-border-strong); border-radius: 4px; background: var(--tn-bg); color: var(--tn-text); }
+
 :root {
   /* Light (default) */
   --tn-bg: #f7f7f9;

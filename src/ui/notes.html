@@ -39,6 +39,37 @@
 
       <select id="tn-sort" class="tn-select" data-i18n-aria-label="sortLabel"></select>
 
+      <div id="tn-date-filter" class="tn-date-filter">
+        <button id="tn-date-trigger" class="tn-btn" type="button" aria-haspopup="dialog"
+          aria-expanded="false" aria-controls="tn-date-popover" data-i18n="createdDateLabel"></button>
+        <div id="tn-date-popover" class="tn-date-popover" role="dialog" data-i18n-aria-label="createdDateLabel" hidden>
+          <div class="tn-date-navigation">
+            <button id="tn-date-prev" class="tn-btn" type="button" data-i18n-aria-label="createdDatePrevious">‹</button>
+            <button id="tn-date-month" class="tn-btn" type="button" aria-live="polite"
+              aria-expanded="false" aria-controls="tn-date-month-year" data-i18n-title="createdDateChooseMonthYear"></button>
+            <button id="tn-date-next" class="tn-btn" type="button" data-i18n-aria-label="createdDateNext">›</button>
+          </div>
+          <div id="tn-date-weekdays" class="tn-date-weekdays" aria-hidden="true"></div>
+          <div id="tn-date-days" class="tn-date-days" role="group" data-i18n-aria-label="createdDateChooseStart"></div>
+          <div id="tn-date-month-year" hidden>
+            <div class="tn-date-navigation">
+              <button id="tn-date-year-prev" class="tn-btn" type="button" data-i18n-aria-label="createdDatePreviousYear">‹</button>
+              <label class="tn-date-year-label"><span data-i18n="createdDateYear"></span>
+                <input id="tn-date-year" type="number" min="1" max="9999" step="1" aria-describedby="tn-date-status" />
+              </label>
+              <button id="tn-date-year-next" class="tn-btn" type="button" data-i18n-aria-label="createdDateNextYear">›</button>
+            </div>
+            <div id="tn-date-months" class="tn-date-months" role="group" data-i18n-aria-label="createdDateChooseMonthYear"></div>
+            <button id="tn-date-back" class="tn-btn" type="button" data-i18n="createdDateBack"></button>
+          </div>
+          <p id="tn-date-status" class="tn-date-status" role="status"></p>
+          <div class="tn-date-navigation">
+            <button id="tn-date-reset" class="tn-btn" type="button" data-i18n="createdDateReset" disabled></button>
+            <button id="tn-date-close" class="tn-btn" type="button" data-i18n="createdDateClose"></button>
+          </div>
+        </div>
+      </div>
+
       <button id="tn-data" class="tn-btn" type="button"
         data-i18n="dataButton" data-i18n-title="dataButtonTitle"
         data-i18n-aria-label="dataButtonTitle"></button>
@@ -127,7 +158,7 @@
           <textarea id="tn-textarea" class="tn-textarea" spellcheck="true"
             data-i18n-placeholder="editorPlaceholder" data-i18n-aria-label="editorLabel"></textarea>
 
-          <div id="tn-preview" class="tn-preview tn-markdown" hidden></div>
+          <div id="tn-preview" class="tn-preview tn-markdown" tabindex="0" hidden></div>
         </div>
       </section>
     </main>

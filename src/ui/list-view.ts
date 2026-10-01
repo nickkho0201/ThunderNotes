@@ -469,7 +469,10 @@ export class NotesListView {
 
   private onClick(event: MouseEvent): void {
     const id = this.idFromEvent(event);
-    if (id !== null) this.onSelect(id);
+    if (id !== null) {
+      this.onSelect(id);
+      this.rows.get(id)?.item.focus({ preventScroll: true });
+    }
   }
 
   private onDoubleClick(event: MouseEvent): void {

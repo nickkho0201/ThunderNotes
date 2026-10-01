@@ -151,6 +151,28 @@ export interface StorageApi {
   };
 }
 
+export interface DownloadItem {
+  id: number;
+  state: "in_progress" | "interrupted" | "complete";
+  error?: string;
+}
+
+export interface DownloadDelta {
+  id: number;
+  state?: { current?: string };
+  error?: { current?: string };
+}
+
+/** Only the Downloads surface needed for explicit local backup Save As. */
+export interface DownloadsApi {
+  download(options: { url: string; filename: string; saveAs: true }): Promise<number>;
+  search(query: { id: number }): Promise<DownloadItem[]>;
+  onChanged: {
+    addListener(listener: (delta: DownloadDelta) => void): void;
+    removeListener(listener: (delta: DownloadDelta) => void): void;
+  };
+}
+
 export interface ThunderbirdBrowser {
   spaces?: SpacesApi;
   theme?: ThemeApi;
@@ -158,6 +180,7 @@ export interface ThunderbirdBrowser {
   runtime: RuntimeApi;
   tabs?: TabsApi;
   storage?: StorageApi;
+  downloads?: DownloadsApi;
 }
 
 /**

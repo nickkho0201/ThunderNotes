@@ -462,5 +462,53 @@
   "spaceRegisterError": {
     "message": "ThunderNotes could not add its button to the Spaces toolbar: $1",
     "description": "Background-script error when space creation fails."
+  },
+  "createdDateLabel": {
+    "message": "Date filter"
+  },
+  "createdDateChooseMonthYear": { "message": "Choose month and year" },
+  "createdDateYear": { "message": "Year" },
+  "createdDatePreviousYear": { "message": "Previous year" },
+  "createdDateNextYear": { "message": "Next year" },
+  "createdDateBack": { "message": "Back to calendar" },
+  "createdDateInvalidYear": { "message": "Enter a year from 1 to 9999." },
+  "createdDateFrom": {
+    "message": "From"
+  },
+  "createdDateTo": {
+    "message": "To"
+  },
+  "createdDateReset": {
+    "message": "Reset dates"
+  },
+  "createdDateInvalid": {
+    "message": "From must be on or before To. Date filter is not applied."
+  },
+  "createdDatePrevious": {
+    "message": "Previous month"
+  },
+  "createdDateNext": {
+    "message": "Next month"
+  },
+  "createdDateChooseStart": {
+    "message": "Select the first date"
+  },
+  "createdDateChooseEnd": {
+    "message": "Select the second date"
+  },
+  "createdDateClose": {
+    "message": "Close"
+  },
+  "dataExportSaving": {
+    "message": "Choose where to save the backup. Waiting for the file to finish saving…"
+  },
+  "dataExportCancelled": {
+    "message": "Export cancelled."
+  },
+  "dataExportComplete": {
+    "message": "Backup saved ($1 notes)."
+  },
+  "dataExportSaveError": {
+    "message": "The backup could not be saved. Check the selected folder and try again."
   }
 }

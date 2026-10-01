@@ -284,7 +284,8 @@ export class NoteStore {
   }
 
   isFiltering(): boolean {
-    return this.filter.search.trim().length > 0 || this.filter.color !== "all" || this.filter.format !== "all";
+    return this.filter.search.trim().length > 0 || this.filter.color !== "all" || this.filter.format !== "all" ||
+      Boolean(this.filter.createdFrom || this.filter.createdTo);
   }
 
   /** O(1) note lookup via a map rebuilt only when the note set changes. */
@@ -294,6 +295,14 @@ export class NoteStore {
   }
 
   // ------------------------------------------------------------------- filters
+
+  setCreatedDateRange(createdFrom: string, createdTo: string): void {
+    if (this.filter.createdFrom === createdFrom && this.filter.createdTo === createdTo) return;
+    this.filter = { ...this.filter, createdFrom, createdTo };
+    this.recomputeVisible();
+    this.emit({ type: "filter" });
+    this.emit({ type: "visible" });
+  }
 
   setSearch(search: string): void {
     if (this.filter.search === search) return;
@@ -394,6 +403,7 @@ export class NoteStore {
       if (this.filter.search.trim().length > 0) this.filter = { ...this.filter, search: "" };
       if (this.filter.color !== "all") this.filter = { ...this.filter, color: "all" };
       if (this.filter.format !== "all") this.filter = { ...this.filter, format: "all" };
+      this.filter = { ...this.filter, createdFrom: "", createdTo: "" };
       this.recomputeVisible();
       this.emit({ type: "filter" });
     }
@@ -485,7 +495,13 @@ export class NoteStore {
     if (wasSelected) this.emit({ type: "selection" });
 
     try {
-      await this.trackWrite(this.repository.delete(id));
+      // Finish earlier writes before the delete, including slow repository
+      // implementations, so a late successful update cannot recreate the row.
+      const earlierWrites = [...this.inFlightWrites];
+      await this.trackWrite((async () => {
+        await Promise.allSettled(earlierWrites);
+        await this.repository.delete(id);
+      })());
       this.pendingDeletes.delete(id);
       this.setSaveStatus("saved");
     } catch (error) {
@@ -511,7 +527,10 @@ export class NoteStore {
       // Only report "saved" when nothing newer is queued.
       if (this.dirty.size === 0) this.setSaveStatus("saved");
     } catch (error) {
-      if (!this.dirty.has(pending.id)) this.dirty.set(pending.id, pending);
+      // A failed in-flight save must not requeue a note removed in the meantime.
+      if (this.noteIndex.has(pending.id) && !this.pendingDeletes.has(pending.id) && !this.dirty.has(pending.id)) {
+        this.dirty.set(pending.id, pending);
+      }
       this.setSaveStatus("error");
       this.reportError(error, "save");
       throw error;

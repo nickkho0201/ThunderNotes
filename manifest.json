@@ -5,6 +5,7 @@
   "version": "0.2.0",
   "author": "ThunderNotes",
   "default_locale": "en",
+  "permissions": ["downloads"],
 
   "browser_specific_settings": {
     "gecko": {

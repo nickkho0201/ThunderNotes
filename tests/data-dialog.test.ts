@@ -6,6 +6,8 @@ import { parseHTML } from "linkedom";
 
 import { decodePortableText, encodePortableData } from "../src/portable/codec.ts";
 import { DataDialog } from "../src/ui/data-dialog.ts";
+import type { DataDialogOptions } from "../src/ui/data-dialog.ts";
+import { BackupSaveError } from "../src/portable/file.ts";
 import { MemoryNotesRepository } from "../src/storage/memory.ts";
 import { NoteStore } from "../src/ui/store.ts";
 import { note } from "./helpers.ts";
@@ -29,7 +31,7 @@ function pageBody(): string {
   return /<body[^>]*>([\s\S]*)<\/body>/i.exec(raw)?.[1] ?? raw;
 }
 
-async function harness(seed = [note({ id: "local", content: "local" })]): Promise<DialogHarness> {
+async function harness(seed = [note({ id: "local", content: "local" })], downloadOverride?: DataDialogOptions["download"]): Promise<DialogHarness> {
   const { document } = parseHTML(`<!doctype html><html><body>${pageBody()}</body></html>`);
   const repository = new MemoryNotesRepository();
   await repository.putMany(seed);
@@ -44,7 +46,7 @@ async function harness(seed = [note({ id: "local", content: "local" })]): Promis
     appVersion: "0.1.5",
     onMessage: (message) => messages.push(message),
     confirm: () => true,
-    download: (text, filename) => downloads.push({ text, filename }),
+    download: downloadOverride ?? (async (text, filename) => { downloads.push({ text, filename }); return "complete"; }),
   });
   return { document: document as unknown as Document, store, repository, downloads, messages };
 }
@@ -69,14 +71,42 @@ async function settle(): Promise<void> {
 }
 
 describe("portable data dialog", () => {
+  it("waits for saving completion without reporting false success or allowing duplicate requests", async () => {
+    let finish!: (value: "complete") => void; let calls = 0;
+    const state = await harness(undefined, async () => { calls++; return new Promise<"complete">((resolve) => { finish = resolve; }); });
+    const button = state.document.getElementById("tn-data-export") as HTMLButtonElement;
+    button.click(); button.click();
+    assert.equal(calls, 1); assert.equal(button.disabled, true);
+    assert.doesNotMatch(state.document.getElementById("tn-data-export-status")!.textContent!, /Backup saved/);
+    finish("complete"); await settle();
+    assert.match(state.document.getElementById("tn-data-export-status")!.textContent!, /Backup saved/);
+    assert.equal(button.disabled, false);
+  });
+  it("reports cancellation neutrally and saving errors without a success message", async () => {
+    for (const failure of [false, true]) {
+      const state = await harness(undefined, async () => { if (failure) throw new BackupSaveError(new Error("FILE_FAILED")); return "cancelled"; });
+      (state.document.getElementById("tn-data-export") as HTMLButtonElement).click(); await settle();
+      const status = state.document.getElementById("tn-data-export-status")!.textContent!;
+      assert.match(status, failure ? /could not be saved/i : /cancelled/i);
+      assert.doesNotMatch(status, /Backup saved|download started/i);
+    }
+  });
+  it("does not unlock Restore safety acknowledgement after a cancelled backup", async () => {
+    const state = await harness(undefined, async () => "cancelled");
+    setSelectedFile(state.document, encodePortableData([note({ id: "source" })], "0.2.0")); await settle();
+    (state.document.getElementById("tn-data-safety-export") as HTMLButtonElement).click(); await settle();
+    assert.equal((state.document.getElementById("tn-data-safety-ack") as HTMLInputElement).disabled, true);
+    assert.equal((state.document.getElementById("tn-data-restore") as HTMLButtonElement).disabled, true);
+  });
   it("exports the current in-memory edit without waiting for autosave", async () => {
     const state = await harness();
     state.store.updateNote("local", { content: "unsaved rescue edit" });
     (state.document.getElementById("tn-data-export") as HTMLButtonElement).click();
+    await settle();
     assert.equal(state.downloads.length, 1);
     assert.match(state.downloads[0]!.filename, /^thundernotes-backup-.*Z\.json$/);
     assert.equal(decodePortableText(state.downloads[0]!.text).notes[0]?.content, "unsaved rescue edit");
-    assert.match(state.document.getElementById("tn-data-export-status")?.textContent ?? "", /download started/);
+    assert.match(state.document.getElementById("tn-data-export-status")?.textContent ?? "", /Backup saved/);
   });
 
   it("validates a selected file and presents metadata without note content", async () => {
@@ -142,8 +172,9 @@ describe("portable data dialog", () => {
     assert.equal(acknowledge.disabled, true);
     assert.equal(restore.disabled, true);
     safety.click();
+    await settle();
     assert.equal(state.downloads.length, 1);
-    assert.match(state.document.getElementById("tn-data-safety-status")?.textContent ?? "", /download started/i);
+    assert.match(state.document.getElementById("tn-data-safety-status")?.textContent ?? "", /Backup saved/i);
     assert.equal(acknowledge.disabled, false);
     assert.match(state.document.getElementById("tn-data-restore-summary")?.textContent ?? "", /current 1 notes.*1 notes/i);
     acknowledge.checked = true;
@@ -163,6 +194,7 @@ describe("portable data dialog", () => {
     setSelectedFile(state.document, encodePortableData([note({ id: "first" })], "0.1.5"), "first.json");
     await settle();
     safety.click();
+    await settle();
     acknowledge.checked = true;
     acknowledge.dispatchEvent(new EventConstructor("change"));
     assert.equal(restore.disabled, false);
@@ -212,6 +244,7 @@ describe("portable data dialog", () => {
     const EventConstructor = (state.document.defaultView as unknown as { Event: typeof Event }).Event;
 
     safety.click();
+    await settle();
     acknowledge.checked = true;
     acknowledge.dispatchEvent(new EventConstructor("change"));
     state.store.updateNote("local", { content: "changed after safety backup" });
@@ -225,6 +258,7 @@ describe("portable data dialog", () => {
     assert.deepEqual((await state.repository.getAll()).map((entry) => entry.id), ["local"]);
 
     safety.click();
+    await settle();
     acknowledge.checked = true;
     acknowledge.dispatchEvent(new EventConstructor("change"));
     restore.click();

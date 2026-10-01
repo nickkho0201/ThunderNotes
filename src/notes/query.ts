@@ -70,6 +70,8 @@ export interface NotesFilter {
   color: ColorFilter;
   format: NoteFormat | "all";
   sort: SortKey;
+  createdFrom?: string;
+  createdTo?: string;
 }
 
 export const DEFAULT_FILTER: NotesFilter = {
@@ -77,7 +79,31 @@ export const DEFAULT_FILTER: NotesFilter = {
   color: "all",
   format: "all",
   sort: DEFAULT_SORT_KEY,
+  createdFrom: "",
+  createdTo: "",
 };
+
+/** Parse calendar input at local midnight, without UTC parsing or 24h arithmetic. */
+export function localDateStart(value: string): Date | null {
+  const match = /^(\d{4})-(\d{2})-(\d{2})$/.exec(value);
+  if (!match) return null;
+  const year = Number(match[1]), month = Number(match[2]), day = Number(match[3]);
+  const date = new Date(0);
+  date.setFullYear(year, month - 1, day);
+  date.setHours(0, 0, 0, 0);
+  if (year < 1 || date.getFullYear() !== year || date.getMonth() !== month - 1 || date.getDate() !== day) return null;
+  return date;
+}
+
+export function createdDateRange(from = "", to = ""): { valid: boolean; start: number; end: number } {
+  const first = from ? localDateStart(from) : null;
+  const last = to ? localDateStart(to) : null;
+  if ((from && !first) || (to && !last) || (first && last && first > last)) {
+    return { valid: false, start: -Infinity, end: Infinity };
+  }
+  if (last) last.setDate(last.getDate() + 1);
+  return { valid: true, start: first?.getTime() ?? -Infinity, end: last?.getTime() ?? Infinity };
+}
 
 /**
  * A note plus its precomputed lowercase content, so repeated filtering during
@@ -115,7 +141,7 @@ export function matchesSearch(searchText: string, query: string): boolean {
  */
 export function filterNotes(
   notes: readonly IndexedNote[],
-  filter: Pick<NotesFilter, "search" | "color" | "format">
+  filter: Pick<NotesFilter, "search" | "color" | "format" | "createdFrom" | "createdTo">
 ): IndexedNote[] {
   const query = filter.search.trim().toLowerCase();
   const hasQuery = query.length > 0;
@@ -123,11 +149,14 @@ export function filterNotes(
   const formatFilter = filter.format;
   const filterByFormat = formatFilter !== "all";
   const filterByColor = colorFilter !== "all";
+  const range = createdDateRange(filter.createdFrom, filter.createdTo);
+  const filterByDate = range.valid && (Number.isFinite(range.start) || Number.isFinite(range.end));
 
-  if (!hasQuery && !filterByColor && !filterByFormat) return [...notes];
+  if (!hasQuery && !filterByColor && !filterByFormat && !filterByDate) return [...notes];
 
   const result: IndexedNote[] = [];
   for (const entry of notes) {
+    if (filterByDate && (entry.note.createdAt < range.start || entry.note.createdAt >= range.end)) continue;
     if (filterByColor && !matchesColor(entry.note, colorFilter)) continue;
     if (filterByFormat && entry.note.format !== formatFilter) continue;
     if (hasQuery && !matchesSearch(entry.searchText, query)) continue;

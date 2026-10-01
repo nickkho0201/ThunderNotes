@@ -21,6 +21,7 @@ import { dirname, join, normalize, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
 
 import { hasViewBox, paintValues, usesContextPaint } from "./icon-rules.ts";
+import { permissionFailures } from "./permission-rules.ts";
 
 const here = dirname(fileURLToPath(import.meta.url));
 const projectRoot = resolve(here, "..");
@@ -76,9 +77,9 @@ if (!existsSync(join(distDir, "manifest.json"))) {
     fail("strict_min_version is required so Thunderbird refuses unsupported versions");
   }
   if (manifest.spacesToolbar) fail("spacesToolbar is deprecated; the spaces API must be used instead");
-  if (manifest.permissions?.length) {
-    fail(`unexpected permissions requested: ${manifest.permissions.join(", ")} (the MVP needs none)`);
-  }
+  const permissionErrors = permissionFailures(manifest);
+  for (const message of permissionErrors) fail(message);
+  if (permissionErrors.length === 0) ok('permissions: exactly downloads, no optional/host permissions');
   if (manifest.background?.type !== "module") fail('background.type should be "module"');
   if (!manifest.background?.scripts?.length) fail("background.scripts must list the service worker");
 

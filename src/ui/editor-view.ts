@@ -13,6 +13,7 @@ import type { Note, NoteColor, NoteFormat } from "../notes/model";
 import { NOTE_COLORS } from "../notes/model";
 import { parseMarkdown } from "../markdown/markdown";
 import { t } from "../i18n";
+import { bindMarkdownEditing } from "./markdown-edit";
 
 export type MarkdownPane = "edit" | "preview";
 
@@ -48,11 +49,11 @@ export class EditorView {
     markdownPane: "edit",
   };
 
-  /** Kept per note, so switching back and forth preserves the chosen pane. */
-  private readonly markdownPaneByNote = new Map<string, MarkdownPane>();
+  private readonly markdownEditing: ReturnType<typeof bindMarkdownEditing>;
 
   constructor(options: EditorViewOptions) {
     this.options = options;
+    this.markdownEditing = bindMarkdownEditing(options.textarea, () => this.currentNote?.format === "markdown");
 
     options.textarea.addEventListener("input", () => {
       this.cache.content = options.textarea.value;
@@ -69,7 +70,6 @@ export class EditorView {
       const button = (event.target as Element | null)?.closest<HTMLButtonElement>("[data-mode]");
       const mode = button?.dataset.mode;
       if (mode !== "edit" && mode !== "preview") return;
-      if (this.cache.id !== null) this.markdownPaneByNote.set(this.cache.id, mode);
       this.setMarkdownPane(mode);
     });
 
@@ -81,6 +81,13 @@ export class EditorView {
     });
 
     options.deleteButton.addEventListener("click", () => options.onDelete());
+    options.preview.addEventListener("dblclick", (event) => {
+      if (event.defaultPrevented || event.target !== options.preview || options.preview.hidden ||
+          this.currentNote?.format !== "markdown" || this.cache.markdownPane !== "preview") return;
+      const selection = options.preview.ownerDocument.getSelection?.();
+      if (selection && !selection.isCollapsed) return;
+      this.focus();
+    });
   }
 
   /** Render the given note, or clear the editor when `note` is null. */
@@ -94,6 +101,10 @@ export class EditorView {
       this.cache.color = null;
       this.cache.content = "";
       this.currentNote = null;
+      this.cache.markdownPane = "edit";
+      this.options.textarea.hidden = false;
+      this.options.preview.hidden = true;
+      this.markdownEditing.reset();
       return;
     }
 
@@ -108,12 +119,14 @@ export class EditorView {
       this.options.preview.replaceChildren();
       this.options.textarea.scrollTop = 0;
       this.options.preview.scrollTop = 0;
-      this.cache.markdownPane = this.markdownPaneByNote.get(note.id) ?? "edit";
+      this.cache.markdownPane = note.format === "markdown" ? "preview" : "edit";
+      this.markdownEditing.reset();
     } else if (this.cache.content !== note.content) {
       // External change (undo, future import): only touch the DOM when the value
       // really differs, so typing never loses the caret.
       this.cache.content = note.content;
       this.options.textarea.value = note.content;
+      this.markdownEditing.reset();
     }
 
     if (this.cache.format !== note.format) {
@@ -131,10 +144,7 @@ export class EditorView {
       this.syncSegmented(this.options.noteColorGroup, "color", note.color ?? "none");
     }
 
-    // `applyMarkdownPane` syncs the Edit/Preview buttons, so the control always
-    // reflects the pane that is actually on screen — including when the pane was
-    // restored from `markdownPaneByNote` for a note being opened for the first
-    // time.
+    // Opening chooses the entry pane; same-note updates keep the user's mode.
     this.applyMarkdownPane(note);
   }
 
@@ -183,7 +193,6 @@ export class EditorView {
   /** Replace the editor contents without notifying the store (used on teardown). */
   reset(): void {
     this.render(null);
-    this.markdownPaneByNote.clear();
   }
 
   focus(): void {
@@ -201,6 +210,13 @@ export class EditorView {
     } catch {
       // Some input types do not support selection ranges; harmless.
     }
+  }
+
+  /** Opening/activating a row respects Markdown's Preview entry mode. */
+  focusOpened(): void {
+    if (this.currentNote === null) return;
+    if (this.options.textarea.hidden) this.options.preview.focus();
+    else this.focus();
   }
 
   /** True when the editor currently holds the focused element. */
