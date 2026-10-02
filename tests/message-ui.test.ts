@@ -153,20 +153,23 @@ describe("message picker keyboard, query and cancellation", () => {
 });
 
 describe("primary note UI and internal Preview dispatch", () => {
-  async function fixture() {
+  async function fixture(missing = false) {
     const f = dom(), mock = api(), repository = new MemoryNotesRepository(), store = new NoteStore(repository, { autosaveDelayMs: 0 });
+    if (missing) mock.headers.length = 0;
     await store.init(); await store.createNote({ meta: { [PRIMARY_MESSAGE_KEY]: reference } }); cleanups.push(() => store.dispose());
     const banners: string[] = [], preview = f.document.getElementById("preview")!;
     const editor = { focus() {}, focusOpened() {}, applySourceEdit() {} } as unknown as EditorView;
     bindMessageNotes({ store, editor, textarea: f.textarea, preview, showEditor() {}, onMessage: message => banners.push(message) });
-    await tick(); return { ...f, ...mock, repository, store, banners, preview };
+    await tick(); const snapshot = primaryMessage(store.getSelectedNote()!)!;
+    assert.equal(snapshot.subject, reference.subject); assert.deepEqual(snapshot.locator, reference.locator);
+    return { ...f, ...mock, repository, store, banners, preview, snapshot };
   }
   it("unlink requires confirm; cancel changes nothing; confirm preserves content", async () => {
     const f = await fixture(); const before = f.store.getSelectedNote()!;
     f.store.updateSelected({ content: "keep inline references" });
-    f.window.confirm = () => false; (f.document.querySelector('.tn-primary-message .tn-btn') as HTMLElement).click();
-    assert.deepEqual(primaryMessage(f.store.getSelectedNote()!), reference);
-    f.window.confirm = () => true; (f.document.querySelector('.tn-primary-message .tn-btn') as HTMLElement).click();
+    f.window.confirm = () => false; (f.document.querySelector('.tn-primary-message__unlink') as HTMLElement).click();
+    assert.deepEqual(primaryMessage(f.store.getSelectedNote()!), f.snapshot);
+    f.window.confirm = () => true; (f.document.querySelector('.tn-primary-message__unlink') as HTMLElement).click();
     assert.equal(primaryMessage(f.store.getSelectedNote()!), null); assert.equal(f.store.getSelectedNote()?.content, "keep inline references");
     assert.equal(f.store.getSelectedId(), before.id);
   });
@@ -174,8 +177,8 @@ describe("primary note UI and internal Preview dispatch", () => {
     const f = await fixture(); f.headers.length = 0;
     f.document.dispatchEvent(new f.window.Event("visibilitychange")); await tick();
     const link = f.document.querySelector('.tn-primary-message__link') as HTMLButtonElement;
-    assert.ok(link.textContent?.includes("Message unavailable: Request")); link.click(); await tick();
-    assert.ok(f.banners[0]?.includes("could not be found")); assert.deepEqual(primaryMessage(f.store.getSelectedNote()!), reference);
+    assert.ok(link.textContent?.includes("Message unavailable:")); assert.ok(link.textContent?.includes("Request")); link.click(); await tick();
+    assert.ok(f.banners[0]?.includes("could not be found")); assert.deepEqual(primaryMessage(f.store.getSelectedNote()!), f.snapshot);
   });
   it("valid Preview internal click opens mail without default/external navigation", async () => {
     const f = await fixture(); const uri = encodeMessageLocator(reference.locator);
@@ -193,9 +196,26 @@ describe("primary note UI and internal Preview dispatch", () => {
     const f = await fixture(); f.headers.length = 0;
     const link = f.document.querySelector('.tn-primary-message__link') as HTMLButtonElement;
     link.click(); await tick();
-    assert.ok(link.textContent?.includes("Message unavailable: Request"));
+    assert.ok(link.textContent?.includes("Message unavailable:")); assert.ok(link.textContent?.includes("Request"));
     assert.ok(f.banners[0]?.includes("could not be found"));
-    assert.deepEqual(primaryMessage(f.store.getSelectedNote()!), reference);
+    assert.deepEqual(primaryMessage(f.store.getSelectedNote()!), f.snapshot);
+  });
+  it("uses an accessible secondary icon and preserves full identity in title", async () => {
+    const f = await fixture();
+    const unlink = f.document.querySelector('.tn-primary-message__unlink') as HTMLButtonElement;
+    assert.equal(unlink.getAttribute("aria-label"), "Unlink message"); assert.equal(unlink.title, "Unlink message");
+    assert.equal(unlink.textContent, ""); assert.ok(unlink.querySelector('.tn-icon--close[aria-hidden="true"]'));
+    unlink.focus(); assert.equal(f.document.activeElement, unlink);
+    const link = f.document.querySelector('.tn-primary-message__link') as HTMLButtonElement;
+    assert.ok(link.title.includes("From: Author")); assert.ok(link.title.includes("Request")); assert.ok(link.title.includes("Message type unknown"));
+    assert.equal(link.getAttribute("aria-label"), link.title);
+  });
+  it("an unresolved old subject-only relation stays visible and is not rewritten", async () => {
+    const f = await fixture(true), note = f.store.getSelectedNote()!;
+    assert.deepEqual(primaryMessage(note), reference); assert.equal(note.revision, 1);
+    const link = f.document.querySelector('.tn-primary-message__link') as HTMLButtonElement;
+    assert.ok(link.textContent?.includes("Request")); assert.ok(link.title.includes("Message unavailable:"));
+    assert.ok(f.document.querySelector('.tn-primary-message__unlink'));
   });
   it("a cold ready page acknowledges capture only after creating/selecting/focusing the note", async () => {
     const f = dom(), mock = api(), queue = new MessageNavigation(), repository = new MemoryNotesRepository(), store = new NoteStore(repository);

@@ -17,7 +17,7 @@
 
 import type { Note, NoteFormat } from "../notes/model";
 import { applyNoteChange, createNote } from "../notes/model";
-import { PRIMARY_MESSAGE_KEY, primaryMessage, validatePrimaryRelations, type MessageReference } from "../messages/locator";
+import { PRIMARY_MESSAGE_KEY, primaryMessage, enrichMessageReference, validatePrimaryRelations, type MessageReference } from "../messages/locator";
 import type { NotesRepository } from "../storage/repository";
 import type { ColorFilter, IndexedNote, NotesFilter, SortKey } from "../notes/query";
 import { DEFAULT_FILTER, indexNote, indexedNotes, isSortKey, selectNotes } from "../notes/query";
@@ -418,6 +418,14 @@ export class NoteStore {
     const meta = { ...note.meta };
     delete meta[PRIMARY_MESSAGE_KEY];
     return this.updateNote(id, { meta });
+  }
+
+  enrichPrimarySnapshot(id: string, fresh: MessageReference): void {
+    if (this.isMutationLocked()) return;
+    const note = this.noteIndex.get(id), current = note && primaryMessage(note);
+    if (!note || !current) return;
+    const next = enrichMessageReference(current, fresh);
+    if (next !== current) this.updateNote(id, { meta: { ...note.meta, [PRIMARY_MESSAGE_KEY]: next } });
   }
 
   /**

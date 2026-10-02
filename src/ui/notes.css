@@ -13,8 +13,14 @@
   position: relative;
 }
 
-.tn-primary-message { display: flex; align-items: center; gap: 4px; min-width: 0; max-width: 36%; }
-.tn-primary-message__link { border: 0; background: transparent; color: var(--tn-accent); cursor: pointer; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; min-width: 0; padding: 4px; }
+.tn-primary-message { display: flex; align-items: center; gap: 2px; min-width: 0; max-width: 44%; }
+.tn-primary-message__link { display: flex; align-items: center; gap: 6px; border: 0; border-radius: 3px; background: transparent; color: var(--tn-accent); font: inherit; font-size: 14px; cursor: pointer; min-width: 0; padding: 4px; }
+.tn-primary-message__identity { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; text-decoration: underline; text-underline-offset: 2px; }
+.tn-primary-message__kind { flex: 0 0 auto; border: 1px solid currentColor; border-radius: 3px; padding: 0 3px; font-size: 10px; line-height: 16px; text-decoration: none; }
+.tn-primary-message__link:hover { background: var(--tn-hover); }
+.tn-primary-message__link:active { background: var(--tn-selected); }
+.tn-primary-message__unlink { flex: 0 0 24px; width: 24px; height: 24px; }
+.tn-primary-message__unlink:active { background: var(--tn-selected); }
 .tn-primary-message.is-unavailable .tn-primary-message__link { color: var(--tn-danger); }
 .tn-primary-message__link:focus-visible { outline: 2px solid var(--tn-focus); }
 .tn-mail-command { position: fixed; z-index: 80; max-width: calc(100vw - 16px); background: var(--tn-panel-bg); border: 1px solid var(--tn-border-strong); border-radius: 5px; padding: 4px; box-shadow: var(--tn-shadow); }

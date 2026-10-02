@@ -13,6 +13,13 @@ start under Unreleased. Release dates below are GitHub publication dates in UTC.
   message references, without embedding email bodies or attachments.
 - `messagesRead` permission for message metadata lookup/search and navigation.
 
+### Changed
+
+- Primary message header uses a readable context link, compact kind badge and
+  secondary local-icon unlink control. Saved author/To/date context remains visible
+  when a message is unavailable; older subject-only relations enrich safely when
+  resolvable. Kind stays unknown where supported metadata cannot establish it.
+
 Message linking is a development candidate pending manual Thunderbird QA.
 
 ## [0.2.2](https://github.com/nickkho0201/ThunderNotes/releases/tag/v0.2.2) — 2026-10-02

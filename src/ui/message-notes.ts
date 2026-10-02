@@ -1,5 +1,6 @@
 import { getBrowser } from "../api/browser";
-import { primaryMessage, primaryOwner, isMessageLocator, decodeMessageLocator, type MessageLocator } from "../messages/locator";
+import { primaryMessage, primaryMessageReference, primaryOwner, isMessageLocator, decodeMessageLocator, type MessageLocator, type MessageReference } from "../messages/locator";
+import { formatPrimaryMessage } from "../messages/presentation";
 import { openMessage, resolveMessage } from "../messages/platform";
 import type { MessageIntent } from "../messages/navigation";
 import { t } from "../i18n";
@@ -18,8 +19,11 @@ export function bindMessageNotes(options: {
   const messages = api.messages, display = api.messageDisplay, document = textarea.ownerDocument;
   const header = document.createElement("div"); header.className = "tn-primary-message"; header.hidden = true;
   const link = document.createElement("button"); link.type = "button"; link.className = "tn-primary-message__link";
-  const unlink = document.createElement("button"); unlink.type = "button"; unlink.className = "tn-btn";
-  unlink.textContent = "×"; unlink.title = t("messageUnlink"); unlink.setAttribute("aria-label", t("messageUnlink"));
+  const badge = document.createElement("span"); badge.className = "tn-primary-message__kind"; badge.setAttribute("aria-hidden", "true");
+  const identity = document.createElement("span"); identity.className = "tn-primary-message__identity"; link.append(badge, identity);
+  const unlink = document.createElement("button"); unlink.type = "button"; unlink.className = "tn-icon-btn tn-primary-message__unlink";
+  const unlinkIcon = document.createElement("span"); unlinkIcon.className = "tn-icon tn-icon--close"; unlinkIcon.setAttribute("aria-hidden", "true"); unlink.append(unlinkIcon);
+  unlink.title = t("messageUnlink"); unlink.setAttribute("aria-label", t("messageUnlink"));
   header.append(link, unlink);
   document.getElementById("tn-md-mode")?.before(header);
   let renderedKey = "", relationSignature = "", sequence = 0;
@@ -47,15 +51,17 @@ export function bindMessageNotes(options: {
     if (key === renderedKey) return; renderedKey = key;
     const current = ++sequence; header.hidden = !reference;
     if (!reference) return;
-    const subject = reference.subject || t("messageNoSubject");
-    link.textContent = `✉ ${subject}`; link.title = subject; link.setAttribute("aria-label", t("messageLinked", subject));
-    header.classList.remove("is-unavailable");
+    const present = (snapshot: MessageReference, unavailable = false): void => {
+      const formatted = formatPrimaryMessage(snapshot, unavailable);
+      badge.textContent = formatted.badge; badge.title = formatted.kind;
+      identity.textContent = formatted.text; link.title = formatted.title; link.setAttribute("aria-label", formatted.title);
+      header.classList.toggle("is-unavailable", unavailable);
+    };
+    present(reference);
     void resolveMessage(messages, reference.locator).catch(() => null).then(found => {
       if (current !== sequence) return;
-      if (!found) {
-        header.classList.add("is-unavailable"); link.textContent = t("messageUnavailable", subject);
-        link.title = t("messageUnavailable", subject); link.setAttribute("aria-label", link.title);
-      }
+      if (!found) present(reference, true);
+      else { const fresh = primaryMessageReference(found); if (fresh) store.enrichPrimarySnapshot(note!.id, fresh); }
     });
   };
   const internalClick = (event: MouseEvent): void => {

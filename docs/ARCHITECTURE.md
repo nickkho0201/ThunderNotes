@@ -1,7 +1,9 @@
 # Architecture
 
 This document describes the 0.2.2 baseline and the Unreleased message-link candidate.
-Message integration still requires real Thunderbird QA. For build and contributor workflows,
+The owner has confirmed the initial message → note → message and unlink flow in
+real Thunderbird. Header polish and remaining message integration paths still
+require QA. For build and contributor workflows,
 see [Development](DEVELOPMENT.md); for user-facing features, see the
 [README](../README.md).
 
@@ -242,11 +244,27 @@ optional permissions, experiments, remote assets or telemetry are introduced.
 
 One note owns at most one primary reference, in the typed
 `meta["thundernotes.primaryMessage.v1"]` extension entry. It contains a version-1
-locator (`headerMessageId`) and a subject snapshot, never a body, attachment or
-runtime numeric message ID. Note metadata is the only authoritative relation
+locator (`headerMessageId`) and a subject snapshot. Optional `kind`, `author`,
+`recipients` (To) and `date` (epoch milliseconds) extend that display snapshot;
+there is never a body, attachment, whole MessageHeader or runtime numeric ID.
+The locator remains authoritative and separate from display data. No localized
+values or folder/account paths are stored. Note metadata is the only authoritative relation
 store. Unlink uses the normal revision/autosave path and requires confirmation;
 it leaves content, inline references and unrelated metadata untouched. Missing
 messages keep their saved relation and display an unavailable state.
+
+The note-header formatter uses the existing UI-locale date/time formatter.
+Incoming displays author; outgoing/draft displays To recipients; unknown displays
+explicit From/To labels instead of guessing direction. A compact localized kind
+badge and a readable, truncated navigation link share a full title/ARIA identity.
+The secondary unlink control reuses the local close icon and keyboard/focus states.
+Unavailable presentation retains all saved identity fields and manual unlink.
+
+Subject-only candidate references and incomplete optional snapshots remain valid.
+When an old relation resolves, missing display fields are enriched through the
+store's normal revision/autosave path. Enrichment does not rewrite content,
+unrelated metadata or an already captured kind, and does not recreate an unlinked
+relation. Unresolved references retain their previous snapshot without writes.
 
 `NotesRepository.createForMessage` checks/adopts the existing owner or adds the
 new record in a single IndexedDB readwrite transaction. The memory backend makes
@@ -302,6 +320,32 @@ logical draft through re-saving or sending. Missing old instances remain unavail
 without altering notes. Unsaved composition windows are outside the message-display
 action. Picker dates use MessageHeader.date (the message's Date header), not
 fabricated received timestamps or draft-creation times.
+
+Primary snapshot dates have the same Date-header semantics: they are not claimed
+to be received-at, draft-created or draft-last-updated timestamps.
+`MessageHeader.folder` is withheld without `accountsRead`; this candidate does
+not request it. Consequently normal runtime capture uses `kind: "unknown"` for
+Inbox, Sent, Drafts and custom folders under the current permissions. The helper
+can consume supplied `specialUse` evidence (`inbox`, `sent`, `drafts`); absent,
+custom or conflicting evidence stays unknown. Sender-address and new/read-state
+heuristics are not used. A previously captured known kind is preserved after a
+move; folder use alone is not a universal persistent direction classifier.
+
+### Message-list indicator boundary
+
+No thread-pane marker is implemented. The supported
+[mailTabs API](https://webextension-api.thunderbird.net/en/latest/mailTabs.html)
+exposes selection, layout and sorting of existing columns, not a custom per-row
+indicator. `message_display_action` applies to the opened-message toolbar.
+The public custom-column API remains tracked in
+[Thunderbird bug 1615801](https://bugzilla.mozilla.org/show_bug.cgi?id=1615801);
+its documented implementation discussion explicitly excludes a backport to 128.
+Internal `ThreadPaneColumns` hooks/Experiments are not a supported API for this
+candidate. No chrome injection, tags, star/read changes or mail writes substitute
+for a marker. Future support needs a shipped public API and a fresh version and
+permission review; increasing the minimum version alone currently proves nothing.
+
+### Metadata picker queries
 
 The picker queries subject and author separately (OR, deduplicated by current ID),
 following Thunderbird's author name/address matching semantics. No fullText,

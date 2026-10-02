@@ -3,7 +3,7 @@ import { IndexedDbNotesRepository } from "../storage/indexeddb";
 import type { NotesRepository } from "../storage/repository";
 import { ensureSpaceRegistered } from "./space";
 import { MessageNavigation } from "../messages/navigation";
-import { messageReference, primaryOwner, type MessageReference } from "../messages/locator";
+import { messageReference, primaryMessageReference, primaryOwner, type MessageReference } from "../messages/locator";
 import { t } from "../i18n";
 
 /** Labels derive from note data. Only the page/store writes notes. */
@@ -39,7 +39,7 @@ export function startMessageActions(api: ThunderbirdBrowser, repository: NotesRe
   api.messageDisplayAction?.onClicked.addListener(tab => {
     void (async () => {
       const page = await api.messageDisplay?.getDisplayedMessages(tab.id);
-      const reference = page?.messages.length === 1 ? messageReference(page.messages[0]!) : null;
+      const reference = page?.messages.length === 1 ? primaryMessageReference(page.messages[0]!) : null;
       if (!reference) return;
       const key = reference.locator.headerMessageId;
       if (clicks.has(key)) return clicks.get(key);

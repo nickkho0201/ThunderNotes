@@ -408,7 +408,7 @@
     "message": "Связанное письмо: $1"
   },
   "messageUnlink": {
-    "message": "Убрать связь с письмом"
+    "message": "Отвязать письмо"
   },
   "messageUnlinkConfirm": {
     "message": "Убрать основную связь с письмом? Заметка не будет удалена. Текст заметки и ссылки на письма внутри текста останутся без изменений."
@@ -451,5 +451,35 @@
   },
   "messageDraftHint": {
     "message": "Ссылки на черновики указывают на сохранённую версию. Повторное сохранение черновика может сделать прежнюю ссылку недоступной."
+  },
+  "messageFrom": {
+    "message": "От: $1"
+  },
+  "messageKind_draft": {
+    "message": "Черновик"
+  },
+  "messageKind_incoming": {
+    "message": "Входящее письмо"
+  },
+  "messageKind_outgoing": {
+    "message": "Исходящее письмо"
+  },
+  "messageKind_unknown": {
+    "message": "Тип письма неизвестен"
+  },
+  "messageKindShort_draft": {
+    "message": "Черн"
+  },
+  "messageKindShort_incoming": {
+    "message": "Вх"
+  },
+  "messageKindShort_outgoing": {
+    "message": "Исх"
+  },
+  "messageKindShort_unknown": {
+    "message": "?"
+  },
+  "messageTo": {
+    "message": "Кому: $1"
   }
 }

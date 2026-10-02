@@ -567,5 +567,35 @@
   },
   "messageDraftHint": {
     "message": "Links to drafts point to the saved version. Saving the draft again can make its previous link unavailable."
+  },
+  "messageFrom": {
+    "message": "From: $1"
+  },
+  "messageKind_draft": {
+    "message": "Draft"
+  },
+  "messageKind_incoming": {
+    "message": "Incoming"
+  },
+  "messageKind_outgoing": {
+    "message": "Outgoing"
+  },
+  "messageKind_unknown": {
+    "message": "Message type unknown"
+  },
+  "messageKindShort_draft": {
+    "message": "Draft"
+  },
+  "messageKindShort_incoming": {
+    "message": "In"
+  },
+  "messageKindShort_outgoing": {
+    "message": "Out"
+  },
+  "messageKindShort_unknown": {
+    "message": "?"
+  },
+  "messageTo": {
+    "message": "To: $1"
   }
 }

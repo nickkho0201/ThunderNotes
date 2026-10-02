@@ -197,6 +197,8 @@ export interface MessageHeader {
   date: Date;
   external?: boolean;
   recipients?: string[];
+  /** Omitted by Thunderbird without accountsRead; never request that permission here. */
+  folder?: { specialUse?: string[] };
 }
 export interface MessageList { id?: string | null; messages: MessageHeader[] }
 export interface MessageQuery {
