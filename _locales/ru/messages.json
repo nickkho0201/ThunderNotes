@@ -426,7 +426,7 @@
     "message": "Выберите письмо"
   },
   "messagePickerSearch": {
-    "message": "Поиск по теме или отправителю"
+    "message": "Поиск по теме, имени или адресу"
   },
   "messageNoResults": {
     "message": "Письма не найдены"
@@ -487,5 +487,14 @@
   },
   "messageUnavailableLabel": {
     "message": "Письмо недоступно"
+  },
+  "messagePickerHint": {
+    "message": "Enter — выбрать · Esc — отменить"
+  },
+  "messagePreviewLoading": {
+    "message": "Загрузка предпросмотра…"
+  },
+  "messagePreviewUnavailable": {
+    "message": "Предпросмотр недоступен"
   }
 }

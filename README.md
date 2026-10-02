@@ -40,7 +40,8 @@ Notes are stored locally in the extension's IndexedDB database. ThunderNotes
 does not sync notes over the network, collect telemetry or load remote assets.
 The permissions are `downloads` for explicit backup export and `messagesRead`
 for local message metadata search, identification and navigation. ThunderNotes
-does not retrieve message bodies or attachments for message linking.
+does not read attachments. The `/mail` picker can show a small text excerpt after
+deliberate hover; excerpts are temporary and are not saved in notes or backups.
 
 If persistent storage is unavailable, a warning explains that notes are held
 only for the current session. Keep backups before removing the extension.

@@ -542,7 +542,7 @@
     "message": "Choose a message"
   },
   "messagePickerSearch": {
-    "message": "Search subject or sender"
+    "message": "Search by subject, name or email"
   },
   "messageNoResults": {
     "message": "No messages found"
@@ -603,5 +603,14 @@
   },
   "messageUnavailableLabel": {
     "message": "Message unavailable"
+  },
+  "messagePickerHint": {
+    "message": "Enter to choose · Esc to cancel"
+  },
+  "messagePreviewLoading": {
+    "message": "Loading preview…"
+  },
+  "messagePreviewUnavailable": {
+    "message": "Preview unavailable"
   }
 }

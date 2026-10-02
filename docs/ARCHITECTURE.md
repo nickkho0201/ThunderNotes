@@ -351,23 +351,60 @@ permission review; increasing the minimum version alone currently proves nothing
 
 ### Metadata picker queries
 
-The picker queries subject and author separately (OR, deduplicated by current ID),
-following Thunderbird's author name/address matching semantics. No fullText,
-body/attachment retrieval, account enumeration or online queries are used.
+Search is debounced by 200 ms. The picker obtains date-window MessageHeaders,
+then performs local substring matching across subject, author and recipients
+(To, Cc and available Bcc, including names and email addresses). One shared normalizer
+uses Unicode NFC, locale-independent lowercasing, trimming and whitespace
+collapsing; email punctuation remains intact. It does not use fuzzy matching or
+depend on Thunderbird's address-query matching rules. No fullText, body reads,
+account enumeration or online queries are used for search.
 `messages.query` has no global date-sort parameter: bounded recent time windows
 are bisected newest-first when a page fills, then collected headers are sorted
-descending locally. Results are limited to 50 and 64 queries, with full lists
+descending locally and deduplicated by current message ID. Results are limited
+to 50 and 64 queries of at most 100 headers each, with full lists
 aborted rather than exhaustively loaded. A visible limited-results status covers
 overflow, including many identical-date messages. The initial window includes up
 to a year of future-dated mail, then expands backwards to the Unix epoch. Mail
 outside these timestamp bounds is not included. No folder/account permission is
-requested solely for result decoration.
+requested solely for result decoration. Sparse matches in large mailboxes may
+remain undiscovered within this work budget; this is not a complete arbitrary
+substring search over every mailbox. Query changes cancel local traversal and
+ignore stale results; an outstanding platform call can only have its list aborted
+once it returns a list ID.
 
 `messagesRead` is the only new permission. The hand-written platform surface
-exposes metadata query/pagination and message display, not MIME/body APIs.
+exposes metadata queries, message display and the narrowly scoped inline-text API
+described below; no raw MIME or attachment retrieval methods are used.
 ThunderNotes does not update message metadata, maintain backlinks in emails,
 or send metadata over the network. Opening a message explicitly invokes normal
 Thunderbird display behavior; Thunderbird itself may fetch that message.
+
+### Hover excerpt privacy boundary
+
+The `/mail` picker is a deliberate exception to metadata-only identification:
+after 350 ms of stable mouse hover, it may call
+[`messages.listInlineTextParts`](https://webextension-api.thunderbird.net/en/mv3/messages.html#listinlinetextparts)
+(Thunderbird 128+, `messagesRead`) to obtain readable inline text. Opening the
+dialog, typing, keyboard selection and shorter hover do not read bodies.
+
+Plain-text parts are preferred. HTML-only messages use a bounded text tokenizer
+that discards tags and non-readable sections, decodes common/numeric entities,
+and never constructs message HTML in a DOM. The normalized excerpt is limited
+to 450 Unicode code points; processing examines at most eight parts and 32,000
+characters per part. This is an identification excerpt, not a full HTML renderer.
+The native API returns whole inline text parts, not a byte-range excerpt; native
+Thunderbird retrieval/decryption and local message availability still apply.
+ThunderNotes calls no raw MIME/attachment API, renders no remote resources and
+issues no custom network requests for preview.
+
+Excerpts live only in the picker: a twenty-entry in-memory LRU cache is cleared
+when it closes. They are never persisted, inserted into note metadata or exported
+with Portable Data. Leaving a row, changing search, scrolling, resizing or closing
+invalidates the pending UI result; a body API call already in progress cannot be
+cancelled, but its stale result is ignored. Failures show neutral unavailable text
+without preventing selection. Preview is informational and never takes focus.
+It appears beside the dialog when space permits, otherwise overlays its result
+area; below 680 px width or 430 px height it is suppressed, including body reads.
 
 ### Markdown command and security
 

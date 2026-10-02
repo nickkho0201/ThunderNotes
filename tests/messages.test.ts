@@ -8,6 +8,7 @@ import { IndexedDbNotesRepository } from "../src/storage/indexeddb.ts";
 import { PRIMARY_MESSAGE_KEY, primaryMessage, primaryOwner, isMessageLocator, messageReference, encodeMessageLocator,
   decodeMessageLocator, inlineMessageLink, MessageRelationConflictError } from "../src/messages/locator.ts";
 import { resolveMessage, openMessage, searchMessages } from "../src/messages/platform.ts";
+import { normalizeMessageSearch } from "../src/messages/search.ts";
 import { MessageNavigation } from "../src/messages/navigation.ts";
 import { parseMarkdown, sanitizeHtml, isSafeUrl } from "../src/markdown/markdown.ts";
 import { encodePortableData, decodePortableText, toPortableNote } from "../src/portable/codec.ts";
@@ -121,11 +122,38 @@ describe("metadata resolution and bounded unified picker queries", () => {
     assert.deepEqual((await searchMessages(api, "", undefined, now)).messages.map(x => x.id), [3, 2, 1]);
     assert.ok(api.calls.every(call => !('fullText' in call) && !('body' in call) && !('online' in call)));
   });
-  it("OR searches subject and author and deduplicates both query streams", async () => {
+  it("locally searches subject and author without trusting API field matching", async () => {
     const all = [header(1, { subject: "alpha" }), header(2, { author: "alpha" }), header(3, { subject: "alpha", author: "alpha" })];
     const api = metadataApi(all);
     assert.deepEqual((await searchMessages(api, "alpha", undefined, 1700000000000)).messages.map(x => x.id), [1, 2, 3]);
-    assert.ok(api.calls.some(call => call.subject === "alpha")); assert.ok(api.calls.some(call => call.author === "alpha"));
+    assert.ok(api.calls.every(call => !call.subject && !call.author));
+  });
+  for (const query of ["системы", "СиСтЕмЫ", "  системы  ", "a.niki", "cooling.systems", "никифор", "recipient two"]) {
+    it(`matches normalized metadata substring ${query}`, async () => {
+      const candidate = header(1, { subject: 'ООО "СИСТЕМЫ ОХЛАЖДЕНИЯ"',
+        author: "Никифоров Антон <a.nikiforov@ogo1.ru>",
+        recipients: ["Никита <n.khoruzhy@cooling.systems>", "Recipient   Two <two@test>"] });
+      assert.deepEqual((await searchMessages(metadataApi([candidate]), query, undefined, 1700000000000)).messages.map(x => x.id), [1]);
+    });
+  }
+  it("normalizes Unicode and whitespace without destroying email punctuation", () => {
+    assert.equal(normalizeMessageSearch("  E\u0301  A.NIKI+tag@HOST  "), "é a.niki+tag@host");
+  });
+  it("deduplicates candidates, handles empty subjects and returns no match", async () => {
+    const candidate = header(1, { subject: "", recipients: ["Other <other@test>"] });
+    assert.equal((await searchMessages(metadataApi([candidate, candidate]), "other@", undefined, 1700000000000)).messages.length, 1);
+    assert.equal((await searchMessages(metadataApi([candidate]), "missing", undefined, 1700000000000)).messages.length, 0);
+  });
+  it("includes available Cc and Bcc recipients without reading bodies", async () => {
+    const candidate = header(1, { ccList: ["Copy <copy@test>"], bccList: ["Blind <blind@test>"] });
+    for (const query of ["copy@", "blind@"]) assert.equal((await searchMessages(metadataApi([candidate]), query, undefined, 1700000000000)).messages.length, 1);
+  });
+  it("aborts a stale query's list as soon as the API returns its ID", async () => {
+    const controller = new AbortController(); const aborted: string[] = [];
+    const api: MessagesApi = { async query() { controller.abort(); return { id: "stale", messages: [header()] }; },
+      async continueList() { throw new Error("No pagination"); }, async abortList(id) { aborted.push(id); } };
+    await assert.rejects(searchMessages(api, "", controller.signal), { name: "AbortError" });
+    assert.deepEqual(aborted, ["stale"]);
   });
   it("bisects full windows rather than accepting mailbox-first pagination", async () => {
     const now = 1700000000000;

@@ -31,14 +31,31 @@
 .tn-primary-message__link:focus-visible { outline: 2px solid var(--tn-focus); outline-offset: 2px; }
 .tn-mail-command { position: fixed; z-index: 80; max-width: calc(100vw - 16px); background: var(--tn-panel-bg); border: 1px solid var(--tn-border-strong); border-radius: 5px; padding: 4px; box-shadow: var(--tn-shadow); }
 .tn-mail-command button { background: var(--tn-selected); color: var(--tn-selected-text); border: 0; padding: 8px; cursor: pointer; }
-.tn-message-picker { padding: 16px; width: min(560px, calc(100vw - 32px)); }
-.tn-message-picker input { width: 100%; box-sizing: border-box; background: var(--tn-bg); color: var(--tn-text); border: 1px solid var(--tn-border-strong); padding: 8px; }
-#tn-message-results { max-height: 50vh; overflow: auto; margin: 8px 0; }
-.tn-message-result { display: flex; flex-direction: column; gap: 4px; width: 100%; text-align: start; padding: 8px; border: 0; background: transparent; color: var(--tn-text); cursor: pointer; }
-.tn-message-result strong, .tn-message-result span { overflow-wrap: anywhere; }
-.tn-message-result span { font-size: 11px; color: var(--tn-text-muted); }
+.tn-message-picker { width: min(560px, calc(100vw - 32px)); overflow: visible; }
+.tn-message-picker[open] { display: flex; flex-direction: column; }
+.tn-message-picker > .tn-dialog__header, .tn-message-picker > .tn-dialog__footer { flex: 0 0 auto; }
+.tn-message-picker__body { min-height: 0; overflow: auto; padding: 12px; }
+.tn-message-picker__search { position: sticky; top: 0; z-index: 1; background: var(--tn-panel-bg); }
+.tn-message-picker__search .tn-icon { position: absolute; left: 10px; top: 12px; width: 16px; height: 16px; color: var(--tn-text-muted); pointer-events: none; }
+.tn-message-picker input { width: 100%; min-width: 0; box-sizing: border-box; background: var(--tn-bg); color: var(--tn-text); font: inherit; border: 1px solid var(--tn-border-strong); border-radius: 4px; padding: 10px 10px 10px 34px; }
+.tn-message-picker input:focus-visible { outline: 2px solid var(--tn-focus); outline-offset: -1px; }
+#tn-message-results { height: clamp(120px, 35vh, 300px); overflow: auto; overflow-x: hidden; margin: 10px 0 0; border: 1px solid var(--tn-border); border-radius: 4px; }
+.tn-message-result { display: flex; flex-direction: column; gap: 4px; width: 100%; min-width: 0; text-align: start; padding: 10px 12px; border: 0; border-bottom: 1px solid var(--tn-border); background: transparent; color: var(--tn-text); font: inherit; cursor: pointer; }
+.tn-message-result strong, .tn-message-result span { display: block; width: 100%; overflow: hidden; white-space: nowrap; text-overflow: ellipsis; }
+.tn-message-result strong { font-size: 14px; font-weight: 600; }
+.tn-message-result span { font-size: 12px; color: var(--tn-text-muted); }
+.tn-message-result:hover { background: var(--tn-hover); }
 .tn-message-result[aria-selected="true"] { background: var(--tn-selected); }
+.tn-message-result:focus-visible { outline: 2px solid var(--tn-focus); outline-offset: -2px; }
+.tn-message-picker__status { height: 32px; overflow: auto; margin: 8px 0 4px; font-size: 12px; color: var(--tn-text-muted); }
+.tn-message-picker > .tn-dialog__footer { justify-content: space-between; }
 .tn-message-hint { font-size: 11px; color: var(--tn-text-muted); }
+.tn-message-hover-preview { position: absolute; z-index: 2; right: 12px; bottom: 64px; width: min(300px, calc(100% - 24px)); max-height: min(300px, calc(100% - 140px)); overflow: hidden; padding: 12px; border: 1px solid var(--tn-border-strong); border-radius: 6px; background: var(--tn-panel-bg); color: var(--tn-text); box-shadow: var(--tn-shadow); pointer-events: none; }
+.tn-message-hover-preview.is-side { left: calc(100% + 12px); right: auto; top: 56px; bottom: auto; max-height: min(300px, calc(100vh - 140px)); }
+.tn-message-hover-preview strong { display: block; overflow: hidden; white-space: nowrap; text-overflow: ellipsis; font-size: 14px; }
+.tn-message-hover-preview .tn-message-hint { overflow: hidden; max-height: 42px; overflow-wrap: anywhere; }
+.tn-message-hover-preview__text { margin: 8px 0 0; font-size: 12px; white-space: pre-wrap; overflow-wrap: anywhere; }
+@media (max-width: 679px), (max-height: 429px) { .tn-message-hover-preview { display: none; } }
 .tn-date-filter > .is-active { background: var(--tn-selected); color: var(--tn-selected-text); }
 .tn-date-popover {
   position: fixed;

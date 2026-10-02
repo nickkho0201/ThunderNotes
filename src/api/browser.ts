@@ -188,7 +188,7 @@ export interface ThunderbirdBrowser {
   messageDisplayAction?: MessageDisplayActionApi;
 }
 
-/** Metadata-only subset of official Thunderbird messages/messageDisplay APIs. */
+/** Narrow subset of official Thunderbird messages/messageDisplay APIs. */
 export interface MessageHeader {
   id: number;
   headerMessageId: string;
@@ -197,6 +197,8 @@ export interface MessageHeader {
   date: Date;
   external?: boolean;
   recipients?: string[];
+  ccList?: string[];
+  bccList?: string[];
   /** Omitted by Thunderbird without accountsRead; never request that permission here. */
   folder?: { specialUse?: string[] };
 }
@@ -213,6 +215,8 @@ export interface MessagesApi {
   query(query: MessageQuery): Promise<MessageList>;
   continueList(id: string): Promise<MessageList>;
   abortList(id: string): Promise<void>;
+  /** TB 128+: picker hover only; never used for search/capture/persistence. */
+  listInlineTextParts?(messageId: number): Promise<Array<{ contentType: string; content: string }>>;
 }
 export interface MessageTab { id?: number; windowId?: number }
 export interface MessageDisplayApi {

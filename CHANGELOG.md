@@ -15,6 +15,9 @@ start under Unreleased. Release dates below are GitHub publication dates in UTC.
 
 ### Changed
 
+- Refined the `/mail` dialog with normalized subject, sender, recipient and partial
+  email search, and a lightweight text preview after deliberate mouse hover.
+  Preview excerpts are temporary and are not stored or exported.
 - Primary message header uses one compact clickable card with a local envelope,
   prominent subject and secondary participant/date context, plus a separate
   broken-link button with a localized Unlink tooltip/accessibility label.

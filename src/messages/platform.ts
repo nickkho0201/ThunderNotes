@@ -1,4 +1,5 @@
-import type { MessagesApi, MessageDisplayApi, MessageHeader, MessageQuery } from "../api/browser";
+import type { MessagesApi, MessageDisplayApi, MessageHeader } from "../api/browser";
+import { matchesMessageSearch } from "./search";
 import { isMessageLocator, messageReference, type MessageLocator } from "./locator";
 
 /** Resolve all exact matches, fail closed on ambiguous copies. Never read MIME. */
@@ -29,27 +30,27 @@ export interface MessageSearchResult { messages: MessageHeader[]; limited: boole
 export async function searchMessages(api: MessagesApi, query: string, signal?: AbortSignal, now = Date.now()): Promise<MessageSearchResult> {
   const results = new Map<number, MessageHeader>();
   let calls = 0, limited = false;
-  const terms: MessageQuery[] = query.trim() ? [{ subject: query.trim() }, { author: query.trim() }] : [{}];
   const visit = async (from: number, to: number): Promise<void> => {
     if (signal?.aborted) throw new DOMException("Cancelled", "AbortError");
-    if (calls + terms.length > 64) { limited = true; return; }
+    if (calls >= 64) { limited = true; return; }
     const found = new Map<number, MessageHeader>();
-    let full = false;
-    for (const term of terms) {
-      calls++;
-      const page = await api.query({ ...term, fromDate: new Date(from), toDate: new Date(to), messagesPerPage: 100 });
-      try {
-        full ||= Boolean(page.id);
-        for (const message of page.messages) if (messageReference(message)) found.set(message.id, message);
-      } finally { if (page.id) await api.abortList(page.id).catch(() => {}); }
-    }
+    calls++;
+    const page = await api.query({ fromDate: new Date(from), toDate: new Date(to), messagesPerPage: 100 });
+    const full = Boolean(page.id);
+    try {
+      if (signal?.aborted) throw new DOMException("Cancelled", "AbortError");
+      for (const message of page.messages) if (messageReference(message)) found.set(message.id, message);
+    } finally { if (page.id) await api.abortList(page.id).catch(() => {}); }
     if (full && to - from > 1) {
       const middle = Math.floor((from + to) / 2);
       await visit(middle, to);
       if (results.size < 50 && !limited) await visit(from, middle);
+      // Retain matching sampled candidates when the work budget prevents a
+      // complete traversal; the UI explicitly reports this incomplete search.
+      if (limited) for (const message of found.values()) if (matchesMessageSearch(message, query)) results.set(message.id, message);
     } else {
       limited ||= full;
-      for (const message of found.values()) results.set(message.id, message);
+      for (const message of found.values()) if (matchesMessageSearch(message, query)) results.set(message.id, message);
     }
   };
   // Start with the recent month; progressively expand backwards without reading
