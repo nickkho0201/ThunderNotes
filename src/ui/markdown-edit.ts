@@ -1,4 +1,6 @@
 /** Pure source edits; no HTML, storage or global keyboard handlers. */
+import { listOutline, movedOrderedNumbers, selectedOrderedDeletion, MARKDOWN_INDENT_SIZE } from "./ordered-levels";
+export { MARKDOWN_INDENT_SIZE } from "./ordered-levels";
 export interface TextEdit {
   start: number;
   end: number;
@@ -6,8 +8,6 @@ export interface TextEdit {
   selectionStart: number;
   selectionEnd: number;
 }
-
-export const MARKDOWN_INDENT_SIZE = 4;
 
 /** Line edits preserve selected text; a plain collapsed caret inserts spaces. */
 export function indentMarkdown(value: string, start: number, end: number, outdent: boolean): TextEdit | null {
@@ -23,7 +23,19 @@ export function indentMarkdown(value: string, start: number, end: number, outden
   // A selection ending exactly at the next line's start excludes that line.
   const lastPosition = multiline && value[end - 1] === "\n" ? end - 1 : end;
   const nextLF = value.indexOf("\n", lastPosition);
-  const blockEnd = nextLF < 0 ? value.length : nextLF;
+  let blockEnd = nextLF < 0 ? value.length : nextLF;
+  // Move a whole ordered subtree together, keeping its children attached.
+  const outline = listOutline(value);
+  const byIndex = new Map(outline.map((node) => [node.index, node]));
+  const affected = outline.filter((node) => node.start >= lineStart && node.start <= blockEnd && node.number !== null);
+  for (const node of affected) {
+    for (const child of outline.filter((entry) => entry.start > node.start)) {
+      let parent = child.parent;
+      while (parent !== null && parent !== node.index) parent = byIndex.get(parent)?.parent ?? null;
+      if (parent !== node.index) break;
+      blockEnd = Math.max(blockEnd, child.end);
+    }
+  }
   const lines = value.slice(lineStart, blockEnd).split("\n");
   let offset = lineStart, delta = 0;
   let selectionStart = start, selectionEnd = end;
@@ -47,7 +59,17 @@ export function indentMarkdown(value: string, start: number, end: number, outden
   }).join("\n");
   if (end > blockEnd) selectionEnd = end + delta;
   if (delta === 0) return null;
-  return { start: lineStart, end: blockEnd, text, selectionStart, selectionEnd };
+  const indented = value.slice(0, lineStart) + text + value.slice(blockEnd);
+  const changes = movedOrderedNumbers(value, indented);
+  if (!changes.length) return { start: lineStart, end: blockEnd, text, selectionStart, selectionEnd };
+  let numbered = indented;
+  const translateNumber = (position: number): number => position + changes.reduce((shift, change) =>
+    shift + (position >= change.end ? change.text.length - (change.end - change.start) : 0), 0);
+  for (const change of [...changes].reverse()) numbered = numbered.slice(0, change.start) + change.text + numbered.slice(change.end);
+  // Include distant siblings in the same undo/input transaction; the source
+  // edit is still confined to the affected outline groups.
+  return { start: 0, end: value.length, text: numbered,
+    selectionStart: translateNumber(selectionStart), selectionEnd: translateNumber(selectionEnd) };
 }
 
 export function wrapMarkdown(value: string, start: number, end: number, key: string): TextEdit | null {
@@ -84,7 +106,7 @@ export function wrapMarkdown(value: string, start: number, end: number, key: str
 function insideFence(value: string): boolean {
   let fence: { marker: string; length: number } | null = null;
   for (const line of value.split("\n")) {
-    const match = /^ {0,3}(`{3,}|~{3,})(.*)$/.exec(line);
+    const match = /^[ \t]*(`{3,}|~{3,})(.*)$/.exec(line);
     if (!match) continue;
     const run = match[1]!;
     if (!fence) fence = { marker: run[0]!, length: run.length };
@@ -146,6 +168,10 @@ export function continueMarkdownList(value: string, start: number, end: number):
  */
 export function deleteOrderedItem(value: string, start: number, end: number, key: string): TextEdit | null {
   if (key !== "Backspace" && key !== "Delete") return null;
+  if (start !== end) {
+    const structural = selectedOrderedDeletion(value, start, end);
+    if (structural) return structural;
+  }
   const item = (line: string) => /^([ \t]*)([1-9]\d{0,8})([.)])([ \t]+)(.*)$/.exec(line);
   const lineStart = value.lastIndexOf("\n", start - 1) + 1;
   let removeStart = lineStart, removeEnd: number, replacement = "", removed = 0;

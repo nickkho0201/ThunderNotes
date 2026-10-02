@@ -113,12 +113,12 @@ describe("Markdown Tab indentation", () => {
       assert.deepEqual(apply(result.value, result.start, result.end, true), { value: source, start: source.length, end: source.length });
     });
   }
-  it("preserves neighbouring ordered numbers and supports nested continuation", () => {
+  it("recalculates destination and source ordered levels and supports nested continuation", () => {
     const source = "1. Parent\n2. Child\n3. Next";
     const result = apply(source, source.indexOf("\n3"));
-    assert.equal(result.value, "1. Parent\n    2. Child\n3. Next");
+    assert.equal(result.value, "1. Parent\n    1. Child\n2. Next");
     const continuation = continueMarkdownList(result.value, result.start, result.end)!;
-    assert.equal(result.value.slice(0, continuation.start) + continuation.text + result.value.slice(continuation.end), "1. Parent\n    2. Child\n    3. \n3. Next");
+    assert.equal(result.value.slice(0, continuation.start) + continuation.text + result.value.slice(continuation.end), "1. Parent\n    1. Child\n    2. \n2. Next");
   });
   it("outdents at most four spaces, clamps caret in removed indentation, leaves zero-indent native content", () => {
     assert.deepEqual(apply("        text", 10, 10, true), { value: "    text", start: 6, end: 6 });

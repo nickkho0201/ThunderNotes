@@ -798,6 +798,40 @@ describe("ui: UX and Markdown polish", () => {
     return { ...wired, textarea, clickMode, key, focus, cleanup };
   }
 
+  it("nested numbering follows input/revision/autosave/reopen and native history input", async () => {
+    const before = "1. Parent\n2. Child\n3. Next", after = "1. Parent\n    1. Child\n2. Next";
+    const h = await setup(before);
+    try {
+      h.clickMode("edit"); const caret = before.indexOf("\n3"); h.textarea.setSelectionRange(caret, caret);
+      const revision = h.store.getSelectedNote()!.revision;
+      h.key(h.textarea, "Tab"); assert.equal(h.textarea.value, after);
+      assert.equal(h.store.getSelectedNote()!.revision, revision + 1);
+      h.store.flushPending(); await new Promise((resolve) => setTimeout(resolve, 0));
+      assert.equal((await h.repository.get("a"))!.content, after);
+      h.store.select("b"); h.store.select("a"); assert.equal(h.textarea.value, after);
+      assert.equal(h.textarea.hidden, true);
+      const preview = h.dom.document.getElementById("tn-preview")!;
+      assert.ok(preview.querySelector("ol ol")); assert.equal(h.store.getSelectedNote()!.content, after);
+      for (const content of [before, after]) {
+        h.textarea.value = content; h.textarea.dispatchEvent(new h.dom.window.Event("input"));
+        assert.equal(h.store.getSelectedNote()!.content, content);
+      }
+    } finally { h.cleanup(); }
+  });
+  it("preserves pre-existing selection through a background double-click gesture", async () => {
+    const h = await setup("nonempty");
+    try {
+      const preview = h.dom.document.getElementById("tn-preview")!;
+      let selected = true;
+      Object.defineProperty(h.dom.document, "getSelection", { configurable: true, value: () => ({ isCollapsed: !selected }) });
+      const down = new h.dom.window.Event("mousedown", { bubbles: true, cancelable: true });
+      Object.assign(down, { button: 0, detail: 1 }); preview.dispatchEvent(down);
+      assert.equal(down.defaultPrevented, false);
+      selected = false;
+      preview.dispatchEvent(new h.dom.window.Event("dblclick", { bubbles: true })); assert.equal(h.textarea.hidden, true);
+    } finally { h.cleanup(); }
+  });
+
   it("Tab is one native editor mutation with selection/scroll, revision, autosave and Preview", async () => {
     const before = "- one\n- two", after = "    - one\n    - two";
     const h = await setup(before);
@@ -1865,6 +1899,18 @@ describe("ui: responsive layout invariants", () => {
     // Fenced code must wrap rather than push the pane sideways.
     cssHas(source, ".tn-markdown pre", /white-space:\s*pre-wrap/, "soft-wrap long code lines");
     cssHas(source, ".tn-markdown pre", /overflow-wrap:\s*anywhere/, "wrap unbroken code lines");
+  });
+
+  it("uses native ordered counters for arbitrary-depth hierarchical markers", () => {
+    cssHas(css(), ".tn-markdown ol > li::marker", /content:\s*counters\(list-item,\s*"\."\)/,
+      "nested labels use the ancestor ordered counters without source mutations");
+    assert.ok(!css().includes("counter-reset: list-item"), "keep the native ol[start] counter");
+  });
+
+  it("preserves distinct standard bullet markers across three levels", () => {
+    cssHas(css(), ".tn-markdown ul", /list-style-type:\s*disc/, "outer bullets");
+    cssHas(css(), ".tn-markdown ul ul", /list-style-type:\s*circle/, "nested bullets");
+    cssHas(css(), ".tn-markdown ul ul ul", /list-style-type:\s*square/, "third-level bullets");
   });
 
   it("lets the editor bar and toolbar wrap so no control is clipped", () => {

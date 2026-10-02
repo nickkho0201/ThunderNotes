@@ -64,6 +64,10 @@ in [Testing](#testing).
   list-item line, or indents all selected lines. Shift+Tab removes up to four
   leading spaces per affected line (or one legacy leading tab). Selections and
   scroll position are preserved; Plain Text and controls retain native Tab navigation.
+  Moving an ordered item with Tab/Shift+Tab also moves its nested subtree and
+  recalculates consecutive source/destination siblings at their own levels.
+  A new child list starts at 1. Preview displays hierarchical ordered markers
+  (for example, 3.2.1) through CSS; saved Markdown keeps standard numbered markers.
 - Seven-way colour marking (none + six colours) shown as a compact leading strip
   in the list — never as a full background.
 - **Live search** across the whole note content, case-insensitive.
@@ -391,7 +395,7 @@ URLs, control-character-obfuscated schemes, and unknown tags.
 ## Testing
 
 `pnpm test` builds the extension and the test bundles with esbuild, then runs
-Node's built-in test runner. There are **502 tests in 76 suites across 23 test
+Node's built-in test runner. There are **533 tests in 79 suites across 25 test
 files**. The suites cover:
 
 | Suite | Covers |

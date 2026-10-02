@@ -15,6 +15,19 @@ function render(markdown: string, options = {}): string {
   return parseMarkdown(markdown, options, document).html;
 }
 
+describe("markdown: nested ordered preview", () => {
+  it("renders three standard-source levels with the original outer start", () => {
+    const source = "3. Parent\n    1. Child\n    2. Child\n        1. Grandchild\n4. Next";
+    const host = document.createElement("div");
+    host.innerHTML = render(source);
+    assert.equal(host.querySelector("ol")?.getAttribute("start"), "3");
+    assert.equal(host.querySelectorAll("ol").length, 3);
+    assert.equal(host.querySelectorAll("ol ol ol > li").length, 1);
+    assert.equal(host.querySelectorAll(":scope > ol > li").length, 2);
+    assert.equal(host.textContent?.includes("3.1"), false, "hierarchy belongs to CSS, not saved/rendered text");
+  });
+});
+
 describe("markdown: sanitizer", () => {
   it("drops scripts, styles and other dangerous elements", () => {
     const html = sanitizeHtml(

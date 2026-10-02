@@ -14,6 +14,7 @@ import { NOTE_COLORS } from "../notes/model";
 import { parseMarkdown } from "../markdown/markdown";
 import { t } from "../i18n";
 import { bindMarkdownEditing } from "./markdown-edit";
+import { emptyPreviewHit } from "./preview-hit";
 
 export type MarkdownPane = "edit" | "preview";
 
@@ -81,8 +82,17 @@ export class EditorView {
     });
 
     options.deleteButton.addEventListener("click", () => options.onDelete());
+    let selectedBeforeClick = false;
+    options.preview.addEventListener("mousedown", (event) => {
+      if (event.button !== 0 || options.preview.hidden) return;
+      if (event.detail < 2) selectedBeforeClick = Boolean(options.preview.ownerDocument.getSelection?.()?.isCollapsed === false);
+      // Empty-background double-click otherwise selects the nearest word even
+      // below the final paragraph. Preserve pre-existing selection, but suppress
+      // that default selection when beginning a genuine background gesture.
+      if (!selectedBeforeClick && emptyPreviewHit(options.preview, event)) event.preventDefault();
+    });
     options.preview.addEventListener("dblclick", (event) => {
-      if (event.defaultPrevented || event.target !== options.preview || options.preview.hidden ||
+      if (event.defaultPrevented || options.preview.hidden || !emptyPreviewHit(options.preview, event) || selectedBeforeClick ||
           this.currentNote?.format !== "markdown" || this.cache.markdownPane !== "preview") return;
       const selection = options.preview.ownerDocument.getSelection?.();
       if (selection && !selection.isCollapsed) return;

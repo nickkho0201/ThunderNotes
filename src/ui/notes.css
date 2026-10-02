@@ -831,6 +831,12 @@ body {
   padding-left: 1.6em;
 }
 
+.tn-markdown ol { padding-inline-start: 3.2em; }
+.tn-markdown ol > li::marker { content: counters(list-item, ".") ". "; }
+.tn-markdown ul { list-style-type: disc; }
+.tn-markdown ul ul { list-style-type: circle; }
+.tn-markdown ul ul ul { list-style-type: square; }
+
 .tn-markdown blockquote {
   padding: 0.1em 0.9em;
   color: var(--tn-text-muted);
