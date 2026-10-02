@@ -160,12 +160,15 @@ describe("primary context persistence and Portable Data v1", () => {
     assert.match(css, /\.tn-primary-message__unlink:active\s*\{[^}]*var\(--tn-selected\)/);
     assert.match(css, /\.tn-primary-message__unlink:focus-visible/); assert.match(css, /\.tn-primary-message__unlink:hover/);
     assert.match(css, /\.tn-primary-message__subject[^}]*font-size:\s*14px[^}]*font-weight:\s*600/);
-    assert.match(css, /@media[^}]*\.tn-primary-message[^}]*max-width:\s*100%/);
+    assert.match(css, /\.tn-primary-message\s*\{[^}]*min-width:\s*0[^}]*padding:\s*8px 8px 6px/);
     assert.ok(readFileSync("assets/icons/mail.svg", "utf8").includes("<svg"));
     assert.match(css, /\.tn-icon--mail[^}]*assets\/icons\/mail\.svg/);
     assert.match(css, /\.tn-primary-message__metadata[^}]*text-overflow:\s*ellipsis/);
     assert.match(css, /grid-template-columns:\s*30px minmax\(0, 1fr\)/);
-    assert.match(css, /@media[^}]*\.tn-primary-message[^}]*flex-basis:\s*100%/);
+    assert.match(css, /\.tn-editor__actions\s*\{[^}]*flex:\s*1 1 100%[^}]*min-width:\s*0[^}]*flex-wrap:\s*wrap/);
+    assert.match(css, /\.tn-editor__actions \.tn-segmented\s*\{[^}]*flex:\s*0 0 auto/);
+    const unlinkRule = css.match(/\.tn-primary-message__unlink\s*\{([^}]*)\}/)![1]!;
+    assert.ok(unlinkRule.includes("var(--tn-text-muted)")); assert.equal(unlinkRule.includes("var(--tn-danger)"), false);
     assert.match(css, /\.tn-primary-message\s*\{[^}]*align-items:\s*center/);
     assert.match(css, /\.tn-primary-message__link\s*\{[^}]*align-items:\s*center[^}]*border:\s*1px solid var\(--tn-border\)[^}]*border-radius:\s*5px[^}]*background:\s*var\(--tn-panel-alt-bg\)/);
     assert.match(css, /\.tn-primary-message__link:hover\s*\{[^}]*background:\s*var\(--tn-hover\)[^}]*border-color:/);

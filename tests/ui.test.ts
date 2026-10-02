@@ -259,6 +259,25 @@ describe("ui: space page markup", () => {
     assert.deepEqual(modes, ["edit", "preview"]);
   });
 
+  it("groups note modes and explicit destructive deletion in the lower action row", () => {
+    const modes = dom.document.getElementById("tn-md-mode")!;
+    const deletion = dom.document.getElementById("tn-delete")!;
+    assert.equal(modes.parentElement, deletion.parentElement);
+    assert.ok(modes.parentElement!.classList.contains("tn-editor__actions"));
+    assert.ok(modes.classList.contains("tn-segmented"));
+    assert.equal(modes.getAttribute("role"), "group");
+    assert.ok(deletion.classList.contains("tn-btn--danger"));
+    for (const attribute of ["data-i18n-title", "data-i18n-aria-label"]) {
+      assert.equal(deletion.getAttribute(attribute), "delete");
+    }
+    assert.equal(deletion.querySelector("[data-i18n]")?.getAttribute("data-i18n"), "delete");
+    for (const locale of ["en", "ru"]) {
+      const catalog = JSON.parse(readFileSync(join(findProjectRoot(), "_locales", locale, "messages.json"), "utf8"));
+      assert.equal(catalog.delete.message, locale === "en" ? "Delete note" : "Удалить заметку");
+    }
+    assert.equal(dom.document.querySelector(".tn-primary-message"), null, "no static empty relation placeholder");
+  });
+
   it("starts with the markdown sub-mode hidden and the editor hidden", () => {
     assert.equal(dom.document.getElementById("tn-md-mode")?.hasAttribute("hidden"), true);
     assert.equal(dom.document.getElementById("tn-editor")?.hasAttribute("hidden"), true);

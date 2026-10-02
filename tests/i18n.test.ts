@@ -66,7 +66,7 @@ describe("i18n: t()", () => {
         },
       },
       () => {
-        assert.equal(t("delete"), "Delete");
+        assert.equal(t("delete"), "Delete note");
       }
     );
   });

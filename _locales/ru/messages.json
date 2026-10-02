@@ -90,7 +90,7 @@
     "message": "Цвет заметки"
   },
   "delete": {
-    "message": "Удалить"
+    "message": "Удалить заметку"
   },
   "deleteTooltip": {
     "message": "Удалить эту заметку"

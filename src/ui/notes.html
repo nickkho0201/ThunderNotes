@@ -139,20 +139,22 @@
               <button class="tn-color-btn tn-color-btn--sm" type="button" data-color="purple"></button>
             </div>
 
-            <div class="tn-editor__spacer"></div>
+            <div class="tn-editor__actions">
+              <div class="tn-segmented" id="tn-md-mode" role="group" hidden>
+                <button class="tn-segmented__btn is-active" type="button" data-mode="edit"
+                  data-i18n="modeEdit"></button>
+                <button class="tn-segmented__btn" type="button" data-mode="preview"
+                  data-i18n="modePreview"></button>
+              </div>
 
-            <div class="tn-segmented" id="tn-md-mode" role="group" hidden>
-              <button class="tn-segmented__btn is-active" type="button" data-mode="edit"
-                data-i18n="modeEdit"></button>
-              <button class="tn-segmented__btn" type="button" data-mode="preview"
-                data-i18n="modePreview"></button>
+              <div class="tn-editor__spacer" aria-hidden="true"></div>
+
+              <button id="tn-delete" class="tn-btn tn-btn--danger" type="button"
+                data-i18n-title="delete" data-i18n-aria-label="delete">
+                <span class="tn-icon tn-icon--delete" aria-hidden="true"></span>
+                <span data-i18n="delete"></span>
+              </button>
             </div>
-
-            <button id="tn-delete" class="tn-btn tn-btn--danger" type="button"
-              data-i18n-title="deleteTooltip">
-              <span class="tn-icon tn-icon--delete" aria-hidden="true"></span>
-              <span data-i18n="delete"></span>
-            </button>
           </div>
 
           <textarea id="tn-textarea" class="tn-textarea" spellcheck="true"

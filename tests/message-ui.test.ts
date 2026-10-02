@@ -21,7 +21,7 @@ const cleanups: (() => void)[] = [];
 afterEach(() => { while (cleanups.length) cleanups.pop()!(); });
 const tick = () => new Promise(resolve => setTimeout(resolve, 10));
 function dom() {
-  const { document, window } = parseHTML('<html lang="en"><body><div id="tn-md-mode"></div><textarea></textarea><div id="preview"></div></body></html>');
+  const { document, window } = parseHTML('<html lang="en"><body><div id="tn-editor"><div class="tn-editor__bar"><div class="tn-editor__actions"><div id="tn-md-mode" role="group"><button data-mode="edit"></button><button data-mode="preview"></button></div><button id="tn-delete"></button></div></div><textarea></textarea><div id="preview"></div></div></body></html>');
   const previous = { document: globalThis.document, Event: globalThis.Event, browser: globalThis.browser };
   globalThis.document = document; globalThis.Event = window.Event;
   let active: Element | null = null;
@@ -279,6 +279,27 @@ describe("primary note UI and internal Preview dispatch", () => {
     assert.ok(f.banners[0]?.includes("could not be found"));
     assert.deepEqual(primaryMessage(f.store.getSelectedNote()!), f.snapshot);
     assert.ok(card.parentElement!.querySelector('.tn-primary-message__unlink .tn-icon--unlink'));
+  });
+  it("relation controls precede and remain separate from grouped note controls", async () => {
+    const f = await fixture(), editor = f.document.getElementById("tn-editor")!;
+    const relation = f.document.querySelector('.tn-primary-message')!;
+    const actions = f.document.querySelector('.tn-editor__actions')!;
+    const modes = f.document.getElementById("tn-md-mode")!, deletion = f.document.getElementById("tn-delete")!;
+    assert.equal(editor.firstElementChild, relation);
+    assert.equal(relation.parentElement, editor);
+    assert.equal(relation.contains(deletion), false); assert.equal(actions.contains(relation), false);
+    assert.equal(relation.querySelector('.tn-primary-message__unlink')?.parentElement, relation);
+    assert.equal(modes.parentElement, actions); assert.equal(deletion.parentElement, actions);
+    assert.equal(modes.getAttribute("role"), "group"); assert.equal(modes.querySelectorAll("button").length, 2);
+    assert.deepEqual([...editor.querySelectorAll("button")].map(button => button.className || button.id || button.getAttribute("data-mode")),
+      ["tn-primary-message__link", "tn-primary-message__unlink", "edit", "preview", "tn-delete"]);
+  });
+  it("unlinked notes hide the entire relation area without hiding note controls", async () => {
+    const f = await fixture(); await f.store.createNote({ content: "unlinked" });
+    assert.equal((f.document.querySelector('.tn-primary-message') as HTMLElement).hidden, true);
+    assert.ok(f.document.querySelector('.tn-editor__actions #tn-delete'));
+    assert.ok(f.document.querySelector('.tn-editor__actions #tn-md-mode'));
+    assert.equal(primaryMessage(f.store.getSelectedNote()!), null);
   });
   it("an unresolved old subject-only relation stays visible and is not rewritten", async () => {
     const f = await fixture(true), note = f.store.getSelectedNote()!;

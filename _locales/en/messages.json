@@ -120,7 +120,7 @@
     "description": "Accessibility label for the per-note color picker."
   },
   "delete": {
-    "message": "Delete",
+    "message": "Delete note",
     "description": "Delete button label."
   },
   "deleteTooltip": {

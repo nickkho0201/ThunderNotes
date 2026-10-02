@@ -30,7 +30,7 @@ export function bindMessageNotes(options: {
   const unlinkIcon = document.createElement("span"); unlinkIcon.className = "tn-icon tn-icon--unlink"; unlinkIcon.setAttribute("aria-hidden", "true"); unlink.append(unlinkIcon);
   unlink.title = t("messageUnlink"); unlink.setAttribute("aria-label", t("messageUnlink"));
   header.append(link, unlink);
-  document.getElementById("tn-md-mode")?.before(header);
+  document.getElementById("tn-editor")?.prepend(header);
   let renderedKey = "", relationSignature = "", sequence = 0;
   const navigate = async (locator: MessageLocator): Promise<void> => {
     try { if (await openMessage(messages, display, locator)) return; }

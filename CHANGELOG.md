@@ -18,6 +18,7 @@ start under Unreleased. Release dates below are GitHub publication dates in UTC.
 - Primary message header uses one compact clickable card with a local envelope,
   prominent subject and secondary participant/date context, plus a separate
   broken-link button with a localized Unlink tooltip/accessibility label.
+  Relation management sits above a separate note mode/Delete note control row.
   Unknown direction uses neutral author → recipients presentation. Saved context
   remains visible when a message is unavailable; older subject-only relations enrich safely when
   resolvable. Kind stays unknown where supported metadata cannot establish it.
