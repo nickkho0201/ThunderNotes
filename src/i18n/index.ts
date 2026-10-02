@@ -42,21 +42,9 @@ function toList(substitutions?: Substitutions): string[] {
  * unavailable. The normal path is Thunderbird's own `getMessage(key, [...])`,
  * which performs exactly this substitution natively.
  *
- * How Thunderbird resolves a message (from `ExtensionCommon.sys.mjs`,
- * `LocaleData.addLocale` + `localizeMessage`), which is why the catalogues must
- * not declare a named `placeholders` block that points at `$1`/`$2`:
- *
- *  1. `addLocale` pre-processes the raw message once, replacing every
- *     `$NAME$` with the `content` of the matching declared placeholder. A
- *     placeholder declared as `{"content": "$1"}` therefore rewrites `$COUNT$`
- *     into `$1` — but if no such placeholder is declared, `$NAME$` is replaced
- *     with the **empty string**.
- *  2. `localizeMessage` then applies the ordered substitution array, replacing
- *     `$1`, `$2`, … with the caller's values.
- *
- * Step 1 runs first and rewrites the message, so the simplest message is the one
- * that never needs step 1 at all: write `$1 of $2 notes` directly. That is what
- * the catalogues do now — no named placeholders anywhere.
+ * ThunderNotes catalogues deliberately use `$1`, `$2`, … directly. The native
+ * i18n API documents ordered substitutions for those tokens, so the fallback
+ * needs no named-placeholder preprocessing or platform-internal behavior.
  *
  * The single alternation (`\$(\d+)`) matters: a substituted value is inserted
  * once and never re-examined, so an argument that itself contains a

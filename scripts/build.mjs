@@ -27,6 +27,10 @@ const wantXpi = process.argv.includes("--xpi");
 
 /** Static files/directories copied verbatim into `dist/`. */
 const STATIC_ENTRIES = [
+  ["LICENSE", "LICENSE"],
+  ["NOTICE", "NOTICE"],
+  ["THIRD_PARTY_LICENSES.md", "THIRD_PARTY_LICENSES.md"],
+  ["licenses", "licenses"],
   ["manifest.json", "manifest.json"],
   ["_locales", "_locales"],
   ["assets", "assets"],

@@ -6,6 +6,12 @@ UTC; an unpublished versioned entry records its release-preparation date.
 
 ## Unreleased
 
+### Fixed
+
+- Production XPI packages the ThunderNotes MIT license and complete notices for
+  the bundled `marked@15.0.12` dependency, with artifact verification that
+  rejects missing, altered or version-mismatched license payloads.
+
 ## 0.3.0 — 2026-10-02
 
 ### Added

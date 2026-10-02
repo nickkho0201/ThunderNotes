@@ -1,0 +1,18 @@
+ThunderNotes
+Copyright (c) 2026 Nick Kho
+
+ThunderNotes is licensed under the MIT License. The complete license text is
+included in the LICENSE file.
+
+Third-party components
+----------------------
+
+The distributed ThunderNotes XPI bundles marked@15.0.12. Marked remains under
+its own upstream license terms; it is not relicensed as part of ThunderNotes.
+Those terms include the Marked MIT notice and the Markdown copyright and BSD
+terms. The complete, unmodified upstream license text is included at:
+
+  licenses/marked-15.0.12-LICENSE.md
+
+THIRD_PARTY_LICENSES.md provides the index of third-party components included
+in the distributed XPI.

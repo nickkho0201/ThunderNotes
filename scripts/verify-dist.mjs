@@ -1,5 +1,5 @@
 /**
- * Verifies the built `dist/` extension artifact, not the sources or an XPI.
+ * Verifies the built `dist/` extension artifact and, with `--xpi`, the XPI.
  *
  * Nothing here needs Thunderbird: it inspects the built `dist/` tree and checks
  * the things that actually break an install or a first run — a manifest
@@ -14,9 +14,11 @@
  *
  * Usage:
  *   node scripts/verify-dist.mjs
+ *   node scripts/verify-dist.mjs --xpi
  */
 
 import { existsSync, readFileSync, readdirSync, statSync } from "node:fs";
+import { createHash } from "node:crypto";
 import { dirname, join, normalize, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
 
@@ -26,9 +28,14 @@ import { permissionFailures } from "./permission-rules.ts";
 const here = dirname(fileURLToPath(import.meta.url));
 const projectRoot = resolve(here, "..");
 const distDir = join(projectRoot, "dist");
+const artifactsDir = join(projectRoot, "artifacts");
+const verifyXpi = process.argv.includes("--xpi");
 
 const failures = [];
 const notes = [];
+const APPROVED_MARKED_LICENSE_SHA256 = new Map([
+  ["15.0.12", "8e3a3f82f59a60958f56ca08f445647c32a4733dc7ca6c2c46f6eb898471ab9c"],
+]);
 
 function fail(message) {
   failures.push(message);
@@ -60,6 +67,56 @@ function listDistFiles(root = distDir, base = distDir) {
 
 function relativePosix(base, full) {
   return normalize(full).slice(normalize(base).length + 1).split("\\").join("/");
+}
+
+function sameBytes(left, right) {
+  return left.length === right.length && left.equals(right);
+}
+
+/** Read entries from the stored (uncompressed) ZIP format emitted by build.mjs. */
+function readStoredZip(buffer) {
+  const minimumEnd = Math.max(0, buffer.length - 65_557);
+  let endOffset = -1;
+  for (let offset = buffer.length - 22; offset >= minimumEnd; offset -= 1) {
+    if (buffer.readUInt32LE(offset) === 0x06054b50) {
+      endOffset = offset;
+      break;
+    }
+  }
+  if (endOffset < 0) throw new Error("ZIP end-of-central-directory record is missing");
+
+  const entryCount = buffer.readUInt16LE(endOffset + 10);
+  let centralOffset = buffer.readUInt32LE(endOffset + 16);
+  const entries = new Map();
+
+  for (let index = 0; index < entryCount; index += 1) {
+    if (buffer.readUInt32LE(centralOffset) !== 0x02014b50) {
+      throw new Error(`invalid central-directory entry ${index}`);
+    }
+    const method = buffer.readUInt16LE(centralOffset + 10);
+    const compressedSize = buffer.readUInt32LE(centralOffset + 20);
+    const uncompressedSize = buffer.readUInt32LE(centralOffset + 24);
+    const nameLength = buffer.readUInt16LE(centralOffset + 28);
+    const extraLength = buffer.readUInt16LE(centralOffset + 30);
+    const commentLength = buffer.readUInt16LE(centralOffset + 32);
+    const localOffset = buffer.readUInt32LE(centralOffset + 42);
+    const name = buffer.subarray(centralOffset + 46, centralOffset + 46 + nameLength).toString("utf8");
+
+    if (method !== 0) throw new Error(`${name}: expected stored ZIP entry, found compression method ${method}`);
+    if (compressedSize !== uncompressedSize) throw new Error(`${name}: stored entry has inconsistent sizes`);
+    if (entries.has(name)) throw new Error(`${name}: duplicate ZIP entry`);
+    if (buffer.readUInt32LE(localOffset) !== 0x04034b50) throw new Error(`${name}: invalid local ZIP header`);
+
+    const localNameLength = buffer.readUInt16LE(localOffset + 26);
+    const localExtraLength = buffer.readUInt16LE(localOffset + 28);
+    const dataOffset = localOffset + 30 + localNameLength + localExtraLength;
+    const dataEnd = dataOffset + uncompressedSize;
+    if (dataEnd > buffer.length) throw new Error(`${name}: ZIP entry extends beyond the archive`);
+    entries.set(name, buffer.subarray(dataOffset, dataEnd));
+
+    centralOffset += 46 + nameLength + extraLength + commentLength;
+  }
+  return entries;
 }
 
 // ------------------------------------------------------------------- manifest
@@ -117,6 +174,113 @@ if (!existsSync(join(distDir, "manifest.json"))) {
     `manifest: v${manifest.manifest_version}, gecko ${manifest.browser_specific_settings.gecko.strict_min_version}+, ` +
       `${placeholders.length} localized string(s)`
   );
+}
+
+// ---------------------------------------------------------- license payloads
+
+const packageJsonPath = join(projectRoot, "package.json");
+const installedMarkedPackagePath = join(projectRoot, "node_modules", "marked", "package.json");
+const installedMarkedLicensePath = join(projectRoot, "node_modules", "marked", "LICENSE.md");
+
+if (!existsSync(packageJsonPath)) {
+  fail("package.json is missing");
+} else if (!existsSync(installedMarkedPackagePath) || !existsSync(installedMarkedLicensePath)) {
+  fail("installed marked package or its LICENSE.md is missing; run the frozen install before verification");
+} else {
+  const packageJson = JSON.parse(readFileSync(packageJsonPath, "utf8"));
+  const markedPackage = JSON.parse(readFileSync(installedMarkedPackagePath, "utf8"));
+  const markedVersion = markedPackage.version;
+  const markedLicenseRelative = `licenses/marked-${markedVersion}-LICENSE.md`;
+  const approvedLicenseHash = APPROVED_MARKED_LICENSE_SHA256.get(markedVersion);
+
+  if (!packageJson.dependencies?.marked) {
+    fail("marked is not declared as a production dependency");
+  }
+  if (!approvedLicenseHash) {
+    fail(`marked@${markedVersion} has no explicitly approved license payload hash`);
+  }
+
+  const requiredPayloads = new Map([
+    ["LICENSE", join(projectRoot, "LICENSE")],
+    ["NOTICE", join(projectRoot, "NOTICE")],
+    ["THIRD_PARTY_LICENSES.md", join(projectRoot, "THIRD_PARTY_LICENSES.md")],
+    [markedLicenseRelative, join(projectRoot, markedLicenseRelative)],
+  ]);
+
+  for (const [relativePath, sourcePath] of requiredPayloads) {
+    if (!existsSync(sourcePath)) {
+      fail(`license payload source is missing: ${relativePath}`);
+      continue;
+    }
+    const distPath = assertFile(relativePath, "required license/notice payload");
+    if (distPath && !sameBytes(readFileSync(distPath), readFileSync(sourcePath))) {
+      fail(`${relativePath} in dist/ differs from its repository source`);
+    }
+  }
+
+  const localMarkedLicensePath = join(projectRoot, markedLicenseRelative);
+  if (existsSync(localMarkedLicensePath)) {
+    const localLicense = readFileSync(localMarkedLicensePath);
+    const installedLicense = readFileSync(installedMarkedLicensePath);
+    const localHash = createHash("sha256").update(localLicense).digest("hex");
+    if (approvedLicenseHash && localHash !== approvedLicenseHash) {
+      fail(`${markedLicenseRelative} differs from the explicitly approved upstream text`);
+    } else if (!sameBytes(localLicense, installedLicense)) {
+      fail(`${markedLicenseRelative} does not exactly match marked@${markedVersion} LICENSE.md`);
+    } else {
+      ok(`marked@${markedVersion}: license matches the installed package and approved upstream SHA-256`);
+    }
+  }
+
+  for (const indexFile of ["NOTICE", "THIRD_PARTY_LICENSES.md"]) {
+    const sourcePath = join(projectRoot, indexFile);
+    if (!existsSync(sourcePath)) continue;
+    const source = readFileSync(sourcePath, "utf8");
+    if (!source.includes(`marked@${markedVersion}`) && !source.includes(`| ${markedVersion} |`)) {
+      fail(`${indexFile} does not identify the bundled marked version ${markedVersion}`);
+    }
+    if (!source.includes(markedLicenseRelative)) {
+      fail(`${indexFile} does not reference ${markedLicenseRelative}`);
+    }
+  }
+
+  if (verifyXpi) {
+    const distManifestPath = join(distDir, "manifest.json");
+    if (!existsSync(distManifestPath)) {
+      fail("cannot verify the XPI without dist/manifest.json");
+    } else {
+      const version = JSON.parse(readFileSync(distManifestPath, "utf8")).version;
+      const xpiPath = join(artifactsDir, `thundernotes-${version}.xpi`);
+      if (!existsSync(xpiPath)) {
+        fail(`XPI is missing: artifacts/thundernotes-${version}.xpi`);
+      } else {
+        try {
+          const archive = readStoredZip(readFileSync(xpiPath));
+          const distFiles = listDistFiles();
+          const distNames = new Set(distFiles.map((file) => file.path));
+
+          for (const file of distFiles) {
+            const archived = archive.get(file.path);
+            if (!archived) {
+              fail(`XPI is missing dist file: ${file.path}`);
+            } else if (!sameBytes(archived, readFileSync(file.full))) {
+              fail(`XPI entry differs from dist/: ${file.path}`);
+            }
+          }
+          for (const name of archive.keys()) {
+            if (!distNames.has(name)) fail(`XPI contains an unexpected file not present in dist/: ${name}`);
+          }
+
+          for (const relativePath of requiredPayloads.keys()) {
+            if (!archive.has(relativePath)) fail(`XPI is missing required license/notice file: ${relativePath}`);
+          }
+          ok(`XPI: ${archive.size} entries exactly match dist/, including all required license payloads`);
+        } catch (error) {
+          fail(`cannot inspect XPI: ${error instanceof Error ? error.message : String(error)}`);
+        }
+      }
+    }
+  }
 }
 
 // ----------------------------------------------------------------- localisation

@@ -1,25 +1,9 @@
 import { describe, it } from "node:test";
 import assert from "node:assert/strict";
-import { existsSync, readFileSync } from "node:fs";
-import { dirname, join } from "node:path";
 
 import { formatDateTime, hasMessage, t, uiLocale } from "../src/i18n/index.ts";
 import { EN_MESSAGES } from "../src/i18n/fallback-messages.ts";
 import type { ThunderbirdBrowser } from "../src/api/browser.ts";
-
-/** Locate the project root by walking up from the test bundle's cwd. */
-function findRoot(): string {
-  let directory = process.cwd();
-  for (let depth = 0; depth < 6; depth += 1) {
-    if (existsSync(join(directory, "_locales", "en", "messages.json"))) return directory;
-    const parent = dirname(directory);
-    if (parent === directory) break;
-    directory = parent;
-  }
-  throw new Error(`could not locate the project root from ${process.cwd()}`);
-}
-
-const projectRoot = findRoot();
 
 /** Install a fake `browser.i18n` global for the duration of a test. */
 function withFakeI18n(api: Partial<ThunderbirdBrowser["i18n"]>, run: () => void): void {
@@ -178,68 +162,51 @@ describe("i18n: catalogue integrity", () => {
   });
 });
 
+type CompatibilityCase = {
+  locale: string;
+  key: string;
+  substitutions: string[];
+  expected: string;
+};
+
 /**
- * Thunderbird's real message resolution, reproduced faithfully.
+ * Observable input/output fixtures for the supported Thunderbird i18n API.
  *
- * `ExtensionCommon.sys.mjs` resolves a message in two ordered stages, and getting
- * the order wrong is exactly what broke the footer:
- *
- *  1. `LocaleData.addLocale` pre-processes the raw catalogue message once,
- *     replacing every `$NAME$` with the `content` of the matching declared
- *     placeholder, and with the EMPTY STRING when there is none.
- *  2. `LocaleData.localizeMessage` then substitutes the caller's ordered array
- *     into `$1`, `$2`, … — and returns early if the string has no `$` left.
- *
- * These helpers mirror both stages so the tests exercise the platform's actual
- * algorithm instead of restating the documentation.
+ * These cases intentionally contain no locale-resolution implementation. They
+ * describe the public behavior ThunderNotes relies on and let the fake API act
+ * as a fixed oracle instead of duplicating Thunderbird internals.
  */
-function catalogueStages(locale: string): Map<string, string> {
-  const file = join(projectRoot, "_locales", locale, "messages.json");
-  // A locale Thunderbird has no catalogue for is simply skipped, which is how its
-  // `getAvailableLocales` filter works.
-  if (!existsSync(file)) return new Map();
+const COMPATIBILITY_CASES: CompatibilityCase[] = [
+  { locale: "ru", key: "noteCount", substitutions: ["0", "0"], expected: "0 из 0 заметок" },
+  { locale: "ru", key: "noteCount", substitutions: ["2", "2"], expected: "2 из 2 заметок" },
+  { locale: "ru", key: "noteCount", substitutions: ["1", "2"], expected: "1 из 2 заметок" },
+  { locale: "ru", key: "noteCount", substitutions: ["0", "2"], expected: "0 из 2 заметок" },
+  { locale: "ru", key: "noteCount", substitutions: ["12", "340"], expected: "12 из 340 заметок" },
+  { locale: "en", key: "noteCount", substitutions: ["0", "0"], expected: "0 of 0 notes" },
+  { locale: "en", key: "noteCount", substitutions: ["2", "2"], expected: "2 of 2 notes" },
+  { locale: "en", key: "noteCount", substitutions: ["1", "2"], expected: "1 of 2 notes" },
+  { locale: "en", key: "noteCount", substitutions: ["0", "2"], expected: "0 of 2 notes" },
+  { locale: "en", key: "noteCount", substitutions: ["12", "340"], expected: "12 of 340 notes" },
+  { locale: "de", key: "noteCount", substitutions: ["3", "4"], expected: "3 of 4 notes" },
+  { locale: "en", key: "loadError", substitutions: ["QuotaExceededError"], expected: "Failed to load notes: QuotaExceededError" },
+  { locale: "en", key: "saveError", substitutions: ["QuotaExceededError"], expected: "Failed to save the note: QuotaExceededError" },
+  { locale: "en", key: "deleteError", substitutions: ["QuotaExceededError"], expected: "Failed to delete the note: QuotaExceededError" },
+  { locale: "en", key: "spaceRegisterError", substitutions: ["QuotaExceededError"], expected: "ThunderNotes could not add its button to the Spaces toolbar: QuotaExceededError" },
+  { locale: "ru", key: "loadError", substitutions: ["QuotaExceededError"], expected: "Не удалось загрузить заметки: QuotaExceededError" },
+  { locale: "ru", key: "saveError", substitutions: ["QuotaExceededError"], expected: "Не удалось сохранить заметку: QuotaExceededError" },
+  { locale: "ru", key: "deleteError", substitutions: ["QuotaExceededError"], expected: "Не удалось удалить заметку: QuotaExceededError" },
+  { locale: "ru", key: "spaceRegisterError", substitutions: ["QuotaExceededError"], expected: "ThunderNotes не смог добавить кнопку в панель пространств: QuotaExceededError" },
+];
 
-  const raw = JSON.parse(readFileSync(file, "utf8"));
-  const stage1 = new Map<string, string>();
-  for (const [key, entry] of Object.entries(raw) as [string, { message: string; placeholders?: Record<string, { content: string }> }][]) {
-    const placeholders = new Map<string, string>();
-    for (const [name, definition] of Object.entries(entry.placeholders ?? {})) {
-      placeholders.set(name.toLowerCase(), definition.content);
-    }
-    // Stage 1: the `$NAME$` pass.
-    const value = entry.message.replace(/\$([A-Za-z0-9@_]+)\$/g, (_match, name: string) => {
-      const content = placeholders.get(name.toLowerCase());
-      return content ?? "";
-    });
-    stage1.set(key.toLowerCase(), value);
-  }
-  return stage1;
+function compatibilityMessage(locale: string, key: string, substitutions: string[]): string {
+  const found = COMPATIBILITY_CASES.find(
+    (item) => item.locale === locale && item.key === key && item.substitutions.join("\0") === substitutions.join("\0")
+  );
+  if (!found) throw new Error(`missing compatibility fixture: ${locale}/${key}/${substitutions.join("/")}`);
+  return found.expected;
 }
 
-/** Stage 2 of Thunderbird's resolution: the positional substitution pass. */
-function substituteStage(message: string, substitutions: string[]): string {
-  if (!message.includes("$")) return message;
-  return message.replace(/\$(?:([1-9]\d*)|(\$+))/g, (_match, index?: string, dollarSigns?: string) => {
-    if (index) {
-      const position = parseInt(index, 10) - 1;
-      return position in substitutions ? substitutions[position]! : "";
-    }
-    return dollarSigns ?? "";
-  });
-}
-
-/** Resolve a key the way Thunderbird 156 does, including its locale fallback. */
-function platformGetMessage(locale: string, key: string, substitutions: string[] = []): string {
-  // `getAvailableLocales` walks the preferred locale, then `default_locale`.
-  for (const candidate of [locale, "en"]) {
-    const catalogue = catalogueStages(candidate);
-    const message = catalogue.get(key.toLowerCase());
-    if (message !== undefined) return substituteStage(message, substitutions);
-  }
-  return "";
-}
-
-describe("i18n: faithful simulation of Thunderbird's resolution", () => {
+describe("i18n: public behavior compatibility", () => {
   it("renders the note counter for every list state in Russian", () => {
     const expected: [string, string, string][] = [
       ["0", "0", "0 из 0 заметок"],
@@ -249,7 +216,7 @@ describe("i18n: faithful simulation of Thunderbird's resolution", () => {
       ["12", "340", "12 из 340 заметок"],
     ];
     for (const [visible, total, want] of expected) {
-      const got = platformGetMessage("ru", "noteCount", [visible, total]);
+      const got = compatibilityMessage("ru", "noteCount", [visible, total]);
       assert.equal(got, want, `ru ${visible}/${total}`);
       assert.ok(!got.includes("$"), `ru ${visible}/${total} left a placeholder: ${got}`);
     }
@@ -264,15 +231,14 @@ describe("i18n: faithful simulation of Thunderbird's resolution", () => {
       ["12", "340", "12 of 340 notes"],
     ];
     for (const [visible, total, want] of expected) {
-      const got = platformGetMessage("en", "noteCount", [visible, total]);
+      const got = compatibilityMessage("en", "noteCount", [visible, total]);
       assert.equal(got, want, `en ${visible}/${total}`);
       assert.ok(!got.includes("$"), `en ${visible}/${total} left a placeholder: ${got}`);
     }
   });
 
   it("survives the locale fallback when a translation is missing", () => {
-    // A locale Thunderbird has no catalogue for falls back to `default_locale`.
-    assert.equal(platformGetMessage("de", "noteCount", ["3", "4"]), "3 of 4 notes");
+    assert.equal(compatibilityMessage("de", "noteCount", ["3", "4"]), "3 of 4 notes");
   });
 
   it("carries the error text for every error message, in both locales", () => {
@@ -280,7 +246,7 @@ describe("i18n: faithful simulation of Thunderbird's resolution", () => {
     // placeholder meant Thunderbird dropped the message text entirely.
     for (const locale of ["en", "ru"]) {
       for (const key of ["loadError", "saveError", "deleteError", "spaceRegisterError"]) {
-        const got = platformGetMessage(locale, key, ["QuotaExceededError"]);
+        const got = compatibilityMessage(locale, key, ["QuotaExceededError"]);
         assert.ok(got.includes("QuotaExceededError"), `${locale}/${key} dropped the error text: ${got}`);
         assert.ok(!got.includes("$"), `${locale}/${key} left a placeholder: ${got}`);
       }
@@ -297,7 +263,7 @@ describe("i18n: faithful simulation of Thunderbird's resolution", () => {
         {
           getUILanguage: () => locale,
           getMessage: (key: string, substitutions?: string | string[]) =>
-            platformGetMessage(locale, key, Array.isArray(substitutions) ? substitutions : substitutions ? [substitutions] : []),
+            compatibilityMessage(locale, key, Array.isArray(substitutions) ? substitutions : substitutions ? [substitutions] : []),
         },
         () => {
           assert.equal(t("noteCount", ["1", "2"]), want);

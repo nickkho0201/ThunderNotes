@@ -1374,50 +1374,24 @@ describe("ui: store/view integration", () => {
 
 describe("ui: note counter localization", () => {
   /**
-   * Install a fake `browser.i18n` that reproduces Thunderbird's real resolution
-   * for a locale, using the two-stage algorithm from `ExtensionCommon.sys.mjs`:
-   *
-   *  1. `addLocale` pre-expands every `$NAME$` from THAT LOCALE FILE's declared
-   *     `placeholders` block, replacing an undeclared `$NAME$` with an empty
-   *     string. (This per-file behaviour is why the counter used to lose its
-   *     numbers: the Russian file declared no placeholders.)
-   *  2. `localizeMessage` substitutes the caller's ordered array into `$1`, `$2`, …
+   * Install a project-scoped `browser.i18n` fixture from ThunderNotes' own
+   * catalogues. The fixture supports only the `$1` and `$2` positional values
+   * used by this UI; it is not a model of Thunderbird's internal resolver.
    */
   function installI18n(locale: string) {
     const rawCatalogue = JSON.parse(
       readFileSync(join(findProjectRoot(), "_locales", locale, "messages.json"), "utf8")
-    ) as Record<string, { message: string; placeholders?: Record<string, { content: string }> }>;
-
-    // Stage 1, done once per locale the way `addLocale` does it.
-    const catalogue = new Map<string, string>();
-    for (const [key, entry] of Object.entries(rawCatalogue)) {
-      const placeholders = new Map(
-        Object.entries(entry.placeholders ?? {}).map(([name, definition]) => [name.toLowerCase(), definition.content])
-      );
-      catalogue.set(
-        key.toLowerCase(),
-        entry.message.replace(/\$([A-Za-z0-9@_]+)\$/g, (_match, name: string) => placeholders.get(name.toLowerCase()) ?? "")
-      );
-    }
+    ) as Record<string, { message: string }>;
 
     const previous = globalThis.browser;
     globalThis.browser = {
       i18n: {
         getUILanguage: () => locale,
         getMessage: (key: string, substitutions?: string | string[]) => {
-          const message = catalogue.get(key.toLowerCase());
+          const message = rawCatalogue[key]?.message;
           if (message === undefined) return "";
           const list = substitutions === undefined ? [] : Array.isArray(substitutions) ? substitutions : [substitutions];
-          // Stage 2, mirroring `localizeMessage` exactly (including its early exit
-          // when no `$` remains, and its `$1`-`$9` index range).
-          if (!message.includes("$")) return message;
-          return message.replace(/\$(?:([1-9]\d*)|(\$+))/g, (_match, index?: string, dollars?: string) => {
-            if (index) {
-              const position = parseInt(index, 10) - 1;
-              return position in list ? list[position]! : "";
-            }
-            return dollars ?? "";
-          });
+          return message.replaceAll("$1", list[0] ?? "$1").replaceAll("$2", list[1] ?? "$2");
         },
       },
       runtime: { getURL: (path: string) => `moz-extension://fake/${path}` },

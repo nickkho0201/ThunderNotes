@@ -14,8 +14,9 @@
     "build:verify": "node scripts/build-verify.mjs",
     "test": "npm run build && npm run build:test && node --test \"build/test/*.test.js\"",
     "verify": "npm run build:verify && node build/verify-dist.mjs",
-    "xpi": "npm run build && node scripts/build.mjs --xpi && npm run verify",
-    "package": "npm run typecheck && npm test && node scripts/build.mjs --xpi && npm run verify"
+    "verify:xpi": "npm run build:verify && node build/verify-dist.mjs --xpi",
+    "xpi": "npm run build && node scripts/build.mjs --xpi && npm run verify:xpi",
+    "package": "npm run typecheck && npm test && node scripts/build.mjs --xpi && npm run verify:xpi"
   },
   "devDependencies": {
     "@types/node": "^22.10.2",
