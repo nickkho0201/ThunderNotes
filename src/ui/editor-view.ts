@@ -15,6 +15,8 @@ import { parseMarkdown } from "../markdown/markdown";
 import { t } from "../i18n";
 import { bindMarkdownEditing } from "./markdown-edit";
 import { emptyPreviewHit } from "./preview-hit";
+import type { TextEdit } from "./markdown-edit";
+import { decodeMessageLocator } from "../messages/locator";
 
 export type MarkdownPane = "edit" | "preview";
 
@@ -193,7 +195,7 @@ export class EditorView {
       // result passes a strict allowlist), so innerHTML is safe here.
       this.options.preview.innerHTML = html;
       for (const link of this.options.preview.querySelectorAll("a")) {
-        link.setAttribute("target", "_blank");
+        if (!decodeMessageLocator(link.getAttribute("href") ?? "")) link.setAttribute("target", "_blank");
       }
     } else if (isMarkdown) {
       this.options.preview.replaceChildren();
@@ -233,6 +235,8 @@ export class EditorView {
   hasFocus(): boolean {
     return document.activeElement === this.options.textarea;
   }
+
+  applySourceEdit(edit: TextEdit): void { this.markdownEditing.apply(edit); }
 }
 
 /** Colour picker values in palette order, with `null` first. */

@@ -252,7 +252,7 @@ export function deleteOrderedItem(value: string, start: number, end: number, key
 }
 
 /** Bind only to the actual focused textarea. Plain text keeps native typing. */
-export function bindMarkdownEditing(textarea: HTMLTextAreaElement, enabled: () => boolean): { reset(): void } {
+export function bindMarkdownEditing(textarea: HTMLTextAreaElement, enabled: () => boolean): { reset(): void; apply(edit: TextEdit): void } {
   let composing = false;
   let previous = textarea.value;
   const closings = new Map<number, string>();
@@ -343,5 +343,5 @@ export function bindMarkdownEditing(textarea: HTMLTextAreaElement, enabled: () =
     event.preventDefault();
     apply(edit);
   });
-  return { reset() { closings.clear(); previous = textarea.value; composing = false; } };
+  return { apply, reset() { closings.clear(); previous = textarea.value; composing = false; } };
 }

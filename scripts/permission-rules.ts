@@ -2,8 +2,8 @@
 export function permissionFailures(manifest: Record<string, unknown>): string[] {
   const failures: string[] = [];
   const permissions = manifest.permissions;
-  if (!Array.isArray(permissions) || permissions.length !== 1 || permissions[0] !== "downloads") {
-    failures.push('permissions must be exactly ["downloads"]');
+  if (!Array.isArray(permissions) || permissions.length !== 2 || !permissions.includes("downloads") || !permissions.includes("messagesRead")) {
+    failures.push('permissions must be exactly ["downloads", "messagesRead"]');
   }
   for (const key of ["optional_permissions", "host_permissions", "optional_host_permissions"]) {
     const value = manifest[key];

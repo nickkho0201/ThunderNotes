@@ -128,7 +128,8 @@ export interface RuntimeApi {
 /** The extension message-tab surface, as returned by `tabs.create`. */
 export interface TabsApi {
   create(createProperties: { url?: string; active?: boolean }): Promise<unknown>;
-  query(queryInfo: Record<string, unknown>): Promise<Array<{ id?: number; url?: string }>>;
+  query(queryInfo: Record<string, unknown>): Promise<Array<{ id?: number; url?: string; windowId?: number }>>;
+  getCurrent?(): Promise<MessageTab | undefined>;
 }
 
 /** A single key/value store area (`storage.local`). */
@@ -179,8 +180,49 @@ export interface ThunderbirdBrowser {
   i18n: I18nApi;
   runtime: RuntimeApi;
   tabs?: TabsApi;
+  windows?: { update(windowId: number, properties: { focused: true }): Promise<unknown> };
   storage?: StorageApi;
   downloads?: DownloadsApi;
+  messages?: MessagesApi;
+  messageDisplay?: MessageDisplayApi;
+  messageDisplayAction?: MessageDisplayActionApi;
+}
+
+/** Metadata-only subset of official Thunderbird messages/messageDisplay APIs. */
+export interface MessageHeader {
+  id: number;
+  headerMessageId: string;
+  subject: string;
+  author: string;
+  date: Date;
+  external?: boolean;
+  recipients?: string[];
+}
+export interface MessageList { id?: string | null; messages: MessageHeader[] }
+export interface MessageQuery {
+  headerMessageId?: string;
+  subject?: string;
+  author?: string;
+  fromDate?: Date;
+  toDate?: Date;
+  messagesPerPage?: number;
+}
+export interface MessagesApi {
+  query(query: MessageQuery): Promise<MessageList>;
+  continueList(id: string): Promise<MessageList>;
+  abortList(id: string): Promise<void>;
+}
+export interface MessageTab { id?: number; windowId?: number }
+export interface MessageDisplayApi {
+  getDisplayedMessages(tabId?: number): Promise<MessageList>;
+  open(properties: { messageId: number; location: "tab"; active: true }): Promise<unknown>;
+  onMessagesDisplayed: { addListener(listener: (tab: MessageTab, messages: MessageList) => void): void };
+}
+export interface MessageDisplayActionApi {
+  setTitle(details: { tabId: number; title: string }): Promise<void>;
+  enable(tabId: number): Promise<void>;
+  disable(tabId: number): Promise<void>;
+  onClicked: { addListener(listener: (tab: MessageTab) => void): void };
 }
 
 /**

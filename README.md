@@ -9,6 +9,8 @@ dedicated Space where you can create a note and start typing, with autosave and
 no required title. It needs no account or cloud backend and has no telemetry.
 
 The current stable release is **0.2.2**.
+This development branch also includes message-linked notes and Markdown `/mail`
+references as an Unreleased candidate awaiting Thunderbird runtime QA.
 
 ## Features
 
@@ -28,13 +30,17 @@ The current stable release is **0.2.2**.
 - Delete confirmation, also available through Delete when the note list has focus.
 - Portable Data v1 JSON backup, Merge import and Restore with a safety backup.
   Export opens the system Save As dialog.
+- Native message action to create/open a primary note, with a confirmed unlink
+  control in the note header. Markdown `/mail` inserts independent message links.
 - Responsive two-pane/single-pane layout, live Light/Dark themes, English and Russian.
 
 ## Privacy / local-first
 
 Notes are stored locally in the extension's IndexedDB database. ThunderNotes
 does not sync notes over the network, collect telemetry or load remote assets.
-The only extension permission is `downloads`, used for explicit backup export.
+The permissions are `downloads` for explicit backup export and `messagesRead`
+for local message metadata search, identification and navigation. ThunderNotes
+does not retrieve message bodies or attachments for message linking.
 
 If persistent storage is unavailable, a warning explains that notes are held
 only for the current session. Keep backups before removing the extension.

@@ -1,13 +1,13 @@
 /**
- * ThunderNotes background service worker.
+ * ThunderNotes MV3 background module.
  *
- * Its only job in the MVP is to keep the Spaces-toolbar button registered, and to
- * keep its icon matched to Thunderbird's current Light/Dark theme. Notes
- * themselves live in the extension page's own IndexedDB, so the worker does not
- * touch user data and can be killed at any time.
+ * Registers the Space, synchronizes its icon and handles native message actions.
+ * Note mutations belong to the page/store. Action labels can read note metadata
+ * through the repository; a live page supplies the memory-fallback state.
  */
 
 import { getBrowser } from "../api/browser";
+import { startMessageActions } from "./messages";
 import { detectThemeMode } from "../theme/detect";
 import { themeModeFromMessage } from "../theme/message";
 import { applySpaceButton, ensureSpaceRegistered } from "./space";
@@ -15,6 +15,7 @@ import type { SpaceRegistration } from "./space";
 import { loadStoredThemeMode, SpaceThemeSync, storeResolvedThemeMode } from "./theme-sync";
 
 const api = getBrowser();
+if (api) startMessageActions(api);
 const themeSync = api
   ? new SpaceThemeSync<SpaceRegistration>({
       detect: () => detectThemeMode({ mediaQuery: null }),

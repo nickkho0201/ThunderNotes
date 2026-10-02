@@ -5,7 +5,15 @@ start under Unreleased. Release dates below are GitHub publication dates in UTC.
 
 ## Unreleased
 
-No user-visible changes recorded yet.
+### Added
+
+- Native opened-message action to create or open one primary linked note;
+  note-header message navigation, confirmed unlink and unavailable-message state.
+- Markdown `/mail` command with a local metadata picker and independent inline
+  message references, without embedding email bodies or attachments.
+- `messagesRead` permission for message metadata lookup/search and navigation.
+
+Message linking is a development candidate pending manual Thunderbird QA.
 
 ## [0.2.2](https://github.com/nickkho0201/ThunderNotes/releases/tag/v0.2.2) — 2026-10-02
 

@@ -5,7 +5,11 @@
   "version": "0.2.2",
   "author": "ThunderNotes",
   "default_locale": "en",
-  "permissions": ["downloads"],
+  "permissions": ["downloads", "messagesRead"],
+  "message_display_action": {
+    "default_title": "__MSG_messageNewNote__",
+    "default_icon": "assets/icons/notes-solid-16.svg"
+  },
 
   "browser_specific_settings": {
     "gecko": {

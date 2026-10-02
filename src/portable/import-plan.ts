@@ -1,4 +1,5 @@
 import { createNoteId, type Note } from "../notes/model";
+import { validatePrimaryRelations } from "../messages/locator";
 import { portableNoteToNote, toPortableNote } from "./codec";
 import type {
   ConflictPolicy,
@@ -120,7 +121,11 @@ export function materializeImportPlan(
   plan: ImportPlan,
   generateId: () => string = createNoteId,
 ): Note[] {
-  if (plan.mode === "restore") return plan.importedNotes.map(portableNoteToNote);
+  if (plan.mode === "restore") {
+    const notes = plan.importedNotes.map(portableNoteToNote);
+    validatePrimaryRelations(notes);
+    return notes;
+  }
 
   const result = new Map(plan.localSnapshot.map((note) => [note.id, portableNoteToNote(note)]));
   const usedIds = new Set([
@@ -143,5 +148,7 @@ export function materializeImportPlan(
     usedIds.add(id);
     result.set(id, portableNoteToNote({ ...action.imported, id }));
   }
-  return [...result.values()];
+  const notes = [...result.values()];
+  validatePrimaryRelations(notes);
+  return notes;
 }

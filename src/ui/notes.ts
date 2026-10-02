@@ -21,6 +21,7 @@ import { SORT_KEYS, isSortKey } from "../notes/query";
 import { DataDialog } from "./data-dialog";
 import { bindListDelete, createDeleteRequest } from "./delete-request";
 import { bindCreatedDateFilter } from "./date-filter";
+import { bindMessageNotes } from "./message-notes";
 
 function requireElement<T extends HTMLElement>(id: string): T {
   const element = document.getElementById(id);
@@ -503,6 +504,8 @@ async function main(): Promise<void> {
   // Reflect the UI language on <html lang> for screen readers.
   const language = getBrowser()?.i18n?.getUILanguage();
   if (language && language.length > 0) document.documentElement.lang = language;
+  bindMessageNotes({ store, editor: editorView, textarea, preview, showEditor: showEditorPane,
+    onMessage: message => showBanner(message, 6000) });
 
   // Keeps a reference so tooling can inspect state during development; it is not
   // part of the extension's public surface.

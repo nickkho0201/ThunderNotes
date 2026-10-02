@@ -12,6 +12,22 @@
 .tn-date-filter {
   position: relative;
 }
+
+.tn-primary-message { display: flex; align-items: center; gap: 4px; min-width: 0; max-width: 36%; }
+.tn-primary-message__link { border: 0; background: transparent; color: var(--tn-accent); cursor: pointer; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; min-width: 0; padding: 4px; }
+.tn-primary-message.is-unavailable .tn-primary-message__link { color: var(--tn-danger); }
+.tn-primary-message__link:focus-visible { outline: 2px solid var(--tn-focus); }
+.tn-mail-command { position: fixed; z-index: 80; max-width: calc(100vw - 16px); background: var(--tn-panel-bg); border: 1px solid var(--tn-border-strong); border-radius: 5px; padding: 4px; box-shadow: var(--tn-shadow); }
+.tn-mail-command button { background: var(--tn-selected); color: var(--tn-selected-text); border: 0; padding: 8px; cursor: pointer; }
+.tn-message-picker { padding: 16px; width: min(560px, calc(100vw - 32px)); }
+.tn-message-picker input { width: 100%; box-sizing: border-box; background: var(--tn-bg); color: var(--tn-text); border: 1px solid var(--tn-border-strong); padding: 8px; }
+#tn-message-results { max-height: 50vh; overflow: auto; margin: 8px 0; }
+.tn-message-result { display: flex; flex-direction: column; gap: 4px; width: 100%; text-align: start; padding: 8px; border: 0; background: transparent; color: var(--tn-text); cursor: pointer; }
+.tn-message-result strong, .tn-message-result span { overflow-wrap: anywhere; }
+.tn-message-result span { font-size: 11px; color: var(--tn-text-muted); }
+.tn-message-result[aria-selected="true"] { background: var(--tn-selected); }
+.tn-message-hint { font-size: 11px; color: var(--tn-text-muted); }
+@media (max-width: 780px) { .tn-primary-message { max-width: 100%; flex: 1 1 160px; } }
 .tn-date-filter > .is-active { background: var(--tn-selected); color: var(--tn-selected-text); }
 .tn-date-popover {
   position: fixed;

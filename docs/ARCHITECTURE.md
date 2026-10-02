@@ -1,6 +1,7 @@
 # Architecture
 
-This document describes ThunderNotes 0.2.2. For build and contributor workflows,
+This document describes the 0.2.2 baseline and the Unreleased message-link candidate.
+Message integration still requires real Thunderbird QA. For build and contributor workflows,
 see [Development](DEVELOPMENT.md); for user-facing features, see the
 [README](../README.md).
 
@@ -9,7 +10,8 @@ see [Development](DEVELOPMENT.md); for user-facing features, see the
 ThunderNotes is a local-first Thunderbird extension using Manifest V3 and the
 modern `spaces` API. A framework-free extension page owns the note list, editor
 and store. The background module registers the Space and coordinates its theme
-icon; it does not own the note dataset.
+icon and message actions; it does not own the note dataset. It may read the
+repository for action labels, with a live-page fallback when IndexedDB is unavailable.
 
 The main flow is:
 
@@ -32,9 +34,10 @@ Data encoding and import planning are separate from file delivery and UI.
 | [src/ui/](../src/ui/) | Store, page wiring, list/editor views, dialogs, calendar and source-editing helpers. |
 | [src/markdown/](../src/markdown/) | Bundled `marked` rendering and strict sanitizer. |
 | [src/portable/](../src/portable/) | Portable Data codec, import planning/commit coordination and backup file transport. |
-| [src/background/](../src/background/) | Space registration and serialized icon/theme updates. |
+| [src/background/](../src/background/) | Space registration, serialized icon/theme updates and native message actions. |
 | [src/theme/](../src/theme/), [src/i18n/](../src/i18n/) | Effective theme detection, localization and locale-aware formatting. |
 | [src/api/](../src/api/) | Hand-written types and access boundary for the Thunderbird APIs used. |
+| [src/messages/](../src/messages/) | Durable locators, metadata queries, relation helpers and acknowledged Space navigation. |
 | [_locales/](../_locales/), [assets/](../assets/) | English/Russian catalogues and local static assets. |
 | [tests/](../tests/), [scripts/](../scripts/) | Regression coverage, build, packaging and artifact checks. |
 
@@ -49,7 +52,7 @@ Data encoding and import planning are separate from file delivery and UI.
 | `format` | `plain` or `markdown`; changing it does not convert content. |
 | `color` | One of six palette colours, or `null`. |
 | `createdAt`, `updatedAt` | Millisecond timestamps. |
-| `revision` | Starts at 1; increments once per real content/format/colour change. |
+| `revision` | Starts at 1; increments once per real content/format/colour/metadata change. |
 | `schemaVersion` | Optional in the local TypeScript shape for historical records; current schema is 1. |
 | `meta` | Optional extension bag; Portable Data requires JSON-compatible values. |
 
@@ -229,9 +232,113 @@ compare the page's resolved theme with the selected glyph.
 
 English is the default locale; Russian is included. Strings use `browser.i18n`
 with bundled fallbacks, positional substitutions and UI-locale `Intl` formatting.
-`downloads` is the only permission. It grants platform download capabilities,
+`downloads` grants platform download capabilities,
 but backup tracking queries only the extension's active download ID. No host or
 optional permissions, experiments, remote assets or telemetry are introduced.
+
+## Message-linked notes and Markdown references
+
+### Primary relation and persistence
+
+One note owns at most one primary reference, in the typed
+`meta["thundernotes.primaryMessage.v1"]` extension entry. It contains a version-1
+locator (`headerMessageId`) and a subject snapshot, never a body, attachment or
+runtime numeric message ID. Note metadata is the only authoritative relation
+store. Unlink uses the normal revision/autosave path and requires confirmation;
+it leaves content, inline references and unrelated metadata untouched. Missing
+messages keep their saved relation and display an unavailable state.
+
+`NotesRepository.createForMessage` checks/adopts the existing owner or adds the
+new record in a single IndexedDB readwrite transaction. The memory backend makes
+the equivalent atomic decision. The page establishes a store write barrier and
+mutation lock before this operation. Repeated requests and concurrent pages
+cannot create two primary owners through the capture path. No database/schema
+version or index changes are needed. After the write barrier, capture reloads the
+repository dataset so a stale page cannot reopen an owner removed by another page.
+
+Portable Data stays v1: its existing JSON `meta` area preserves relations, and
+metadata remains part of equality/conflict planning. Imports without relations
+remain valid. Valid relation-bearing imports preserve them; a resulting dataset
+with two valid primary owners for one RFC identity is rejected before replacement,
+including a Keep both conflict that would duplicate that relation. No imported
+relation is silently stripped or reassigned. Choose Keep current/Use imported or
+unlink the conflict first. Older builds preserve the unknown metadata bag.
+
+### Native action and navigation
+
+The supported `message_display_action` has no popup or chrome DOM injection.
+Per-tab titles/enabled states derive from the displayed message and note owners,
+with sequence guards against stale async updates. Labels read the repository;
+only an unavailable persistent backend uses the live page's memory state.
+A single displayed message
+with a usable durable header offers New note or Open note. Physical placement
+and toolbar customization belong to Thunderbird, not ThunderNotes.
+
+Background capture queues a short-lived navigation intent under
+`thundernotes.messageNavigation.v1`, opens the Space and wakes existing pages.
+An existing Space window is reused through `tabs.query({ spaceId })` and focused;
+the active background routes delivery only to that window. No `tabs` permission
+or mail-tab URL inspection is needed.
+A ready page claims a 30-second lease, creates/adopts the owner through its store,
+selects it and acknowledges completion. Unacked intents survive background
+restart; page readiness/visibility and a page-local retry recover delivery.
+Repeated clicks coalesce by locator. Intents expire after 24 hours and are not
+a relationship index. Newly created notes remain Plain Text and receive editor
+focus; existing notes retain the normal Preview/Edit entry behavior.
+
+### Locator, query and runtime boundaries
+
+The official [messages API](https://webextension-api.thunderbird.net/en/latest/messages.html)
+defines runtime numeric IDs as restart/move-unstable. The RFC `headerMessageId`
+is queried against current local metadata before opening the resolved runtime ID
+through [messageDisplay](https://webextension-api.thunderbird.net/en/latest/messageDisplay.html).
+No match, multiple copies sharing that header, external file messages or malformed
+locators fail safely. Copies are not guessed by stale folder paths.
+
+Saved drafts can be referenced by their saved-instance header. Thunderbird's
+[compose implementation](https://github.com/mozilla/releases-comm-central/blob/master/mailnews/compose/src/nsMsgCompose.cpp)
+generates a new Message-ID for each draft save: these references do not follow a
+logical draft through re-saving or sending. Missing old instances remain unavailable
+without altering notes. Unsaved composition windows are outside the message-display
+action. Picker dates use MessageHeader.date (the message's Date header), not
+fabricated received timestamps or draft-creation times.
+
+The picker queries subject and author separately (OR, deduplicated by current ID),
+following Thunderbird's author name/address matching semantics. No fullText,
+body/attachment retrieval, account enumeration or online queries are used.
+`messages.query` has no global date-sort parameter: bounded recent time windows
+are bisected newest-first when a page fills, then collected headers are sorted
+descending locally. Results are limited to 50 and 64 queries, with full lists
+aborted rather than exhaustively loaded. A visible limited-results status covers
+overflow, including many identical-date messages. The initial window includes up
+to a year of future-dated mail, then expands backwards to the Unix epoch. Mail
+outside these timestamp bounds is not included. No folder/account permission is
+requested solely for result decoration.
+
+`messagesRead` is the only new permission. The hand-written platform surface
+exposes metadata query/pagination and message display, not MIME/body APIs.
+ThunderNotes does not update message metadata, maintain backlinks in emails,
+or send metadata over the network. Opening a message explicitly invokes normal
+Thunderbird display behavior; Thunderbird itself may fetch that message.
+
+### Markdown command and security
+
+The focused Markdown textarea recognizes `/` tokens at line start/after whitespace;
+URLs/paths/embedded words do not trigger the menu. `/mail` is explicitly confirmed
+by Enter or mouse. A modal metadata picker owns search/results keyboard handling.
+Cancellation leaves the command token untouched and restores editor selection.
+An inserted reference uses the existing native-edit/range fallback and input flow.
+Stale note/source offsets are checked before applying an asynchronous result.
+
+Inline links are independent of primary metadata. The normal Markdown shape is
+`[subject](thundernotes-message:v1/<canonical-percent-encoded-headerMessageId>)`.
+The payload is versioned, deterministic and strictly validated; Markdown punctuation
+in subjects is escaped. Sanitization permits only this exact internal destination
+on anchors, not images or arbitrary protocols. Preview intercepts click, auxiliary
+click and context-menu navigation; internal links never use external URL handling.
+Malformed targets lose their href. Existing dangerous-scheme blocking and CSP
+remain unchanged. Plain Text shows the exact source and exposes no slash/picker
+or inline-link navigation; primary metadata remains format-independent.
 
 ## Safety invariants
 

@@ -47,15 +47,14 @@ export interface Note {
   revision: number;
 
   /**
-   * Reserved for future schema migrations (e.g. `2` once notes can carry mail
-   * links). Readers must tolerate its absence in data written by older builds.
+   * Reserved for persistent schema migrations. Message relations use the v1 meta
+   * extension bag. Readers tolerate absence in data written by older builds.
    */
   schemaVersion?: number;
 
   /**
-   * Optional free-form extension bag. Never used by the MVP; it is the escape
-   * hatch for future fields (mailId, calendarEventId, deviceOrigin, ...) that
-   * should not force a migration of every existing record.
+   * Optional extension bag. Typed message helpers own the primary-relation key;
+   * unrelated entries are preserved. Portable Data requires JSON-compatible data.
    */
   meta?: Record<string, unknown>;
 }
@@ -161,14 +160,15 @@ export function createNote(overrides: Partial<Note> = {}): Note {
  */
 export function applyNoteChange(
   note: Note,
-  change: Partial<Pick<Note, "content" | "format" | "color">>,
+  change: Partial<Pick<Note, "content" | "format" | "color" | "meta">>,
   now: number = Date.now()
 ): Note {
   const content = change.content ?? note.content;
   const format = change.format ?? note.format;
   const color = change.color === undefined ? note.color : change.color;
+  const meta = change.meta === undefined ? note.meta : change.meta;
 
-  if (content === note.content && format === note.format && color === note.color) {
+  if (content === note.content && format === note.format && color === note.color && meta === note.meta) {
     return note;
   }
 
@@ -177,6 +177,7 @@ export function applyNoteChange(
     content,
     format,
     color,
+    ...(meta === undefined ? {} : { meta }),
     updatedAt: now,
     revision: note.revision + 1,
   };

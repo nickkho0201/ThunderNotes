@@ -1,5 +1,6 @@
 import { t } from "../i18n";
 import { PortableDataError } from "../portable/types";
+import { MessageRelationConflictError } from "../messages/locator";
 
 function parameter(error: PortableDataError, name: string): string {
   const value = error.parameters[name];
@@ -8,6 +9,7 @@ function parameter(error: PortableDataError, name: string): string {
 
 /** Translate stable Portable Data error codes without exposing technical messages to the UI. */
 export function localizePortableError(error: unknown): string {
+  if (error instanceof MessageRelationConflictError) return t("messageRelationConflict");
   if (!(error instanceof PortableDataError)) {
     console.error("[ThunderNotes] unexpected Portable Data failure", error);
     return t("portableErrorUnexpected");

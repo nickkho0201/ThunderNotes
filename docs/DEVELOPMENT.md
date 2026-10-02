@@ -79,7 +79,8 @@ contents. Packaging the same `dist/` produces the same bytes; full build
 reproducibility also depends on the same source and resolved toolchain. Packaging
 recreates `artifacts/`, so archive previous outputs elsewhere if they are needed.
 
-The verifier checks version agreement, manifest/locales, exactly `["downloads"]`,
+The verifier checks version agreement, manifest/locales, exactly
+`["downloads", "messagesRead"]`,
 absence of host/optional/experiment permissions, asset resolution, hidden-state
 CSS, theme-icon rules, CSP, network entry points and remote assets. These are
 artifact checks, not a guarantee covering every possible runtime action.
@@ -136,6 +137,17 @@ regressions, especially:
 - Light/Dark page/icon switching, narrow layouts and RU/EN labels/date formatting.
 - System Save As: cancel, successful file creation and backup contents.
 - Merge/Restore confirmations, safety backup and persistence after restart.
+- Native message-action placement/state in multiple tabs/windows; cold/warm Space
+  navigation, repeated clicks, unlink/delete and moved/unavailable message resolution.
+- Markdown `/mail` focus, cancellation, keyboard navigation, subject escaping,
+  recent/search ordering and internal Preview links, including saved-draft re-saving.
+
+The message-link QA candidate retains manifest version 0.2.2 and is named
+`thundernotes-0.2.2-message-links-qa.xpi`. Preserve the published artifact outside
+`artifacts/` before clean/package replaces it. Temporary `dist/manifest.json`
+testing is useful when same-version installation is refused; use persistent XPI
+installation for restart tests. Do not remove the installed extension merely to
+force an update: preserve notes with a backup and let the owner choose the setup.
 
 Use the Browser Console for integration errors. A page exit only initiates
 best-effort async writes; abrupt context destruction cannot be tested into an

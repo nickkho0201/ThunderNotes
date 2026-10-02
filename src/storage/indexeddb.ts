@@ -14,6 +14,7 @@ import type { Note } from "../notes/model";
 import type { NotesRepository, NotesRepositoryInfo } from "./repository";
 import { migrationsBetween } from "./migrations";
 import { MemoryNotesRepository } from "./memory";
+import { primaryMessage, primaryOwner } from "../messages/locator";
 
 export { MemoryNotesRepository };
 
@@ -209,6 +210,20 @@ export class IndexedDbNotesRepository implements NotesRepository {
   async create(note: Note): Promise<void> {
     await this.transaction([STORE_NOTES], "readwrite", (tx) => {
       tx.objectStore(STORE_NOTES).add(note);
+    });
+  }
+
+  async createForMessage(note: Note): Promise<{ note: Note; created: boolean }> {
+    const reference = primaryMessage(note);
+    if (!reference) throw new Error("Primary message required");
+    return this.transaction([STORE_NOTES], "readwrite", async tx => {
+      const store = tx.objectStore(STORE_NOTES);
+      const rows = await requestToPromise(store.getAll() as IDBRequest<unknown[]>);
+      const notes = rows.map(normalizeNote).filter((note): note is Note => note !== null);
+      const owner = primaryOwner(notes, reference.locator);
+      if (owner) return { note: owner, created: false };
+      await requestToPromise(store.add(note));
+      return { note, created: true };
     });
   }
 

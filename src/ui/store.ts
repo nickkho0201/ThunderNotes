@@ -17,6 +17,7 @@
 
 import type { Note, NoteFormat } from "../notes/model";
 import { applyNoteChange, createNote } from "../notes/model";
+import { PRIMARY_MESSAGE_KEY, primaryMessage, validatePrimaryRelations, type MessageReference } from "../messages/locator";
 import type { NotesRepository } from "../storage/repository";
 import type { ColorFilter, IndexedNote, NotesFilter, SortKey } from "../notes/query";
 import { DEFAULT_FILTER, indexNote, indexedNotes, isSortKey, selectNotes } from "../notes/query";
@@ -385,6 +386,40 @@ export class NoteStore {
 
   // ------------------------------------------------------------------ mutation
 
+  async openPrimaryNote(reference: MessageReference): Promise<{ note: Note; created: boolean }> {
+    this.assertMutationAllowed();
+    const result = await this.withMutationLock(async session => {
+      await session.writeBarrier();
+      if (!this.repository.createForMessage) throw new Error("Atomic message linking unavailable");
+      const current = await this.repository.createForMessage(createNote({ meta: { [PRIMARY_MESSAGE_KEY]: structuredClone(reference) } }));
+      // Adopt disk state after flushing this page, never open a stale cached owner.
+      this.notes = await this.repository.getAll();
+      this.reindex(); this.generation += 1;
+      this.emit({ type: "notes" }); this.emit({ type: "visible" });
+      const owner = this.noteIndex.get(current.note.id);
+      if (!owner || primaryMessage(owner)?.locator.headerMessageId !== reference.locator.headerMessageId) {
+        throw new Error("Primary owner changed during capture; retry required");
+      }
+      return { note: owner, created: current.created };
+    });
+    if (!this.visible.some(entry => entry.note.id === result.note.id)) {
+      this.filter = { ...this.filter, search: "", color: "all", format: "all", createdFrom: "", createdTo: "" };
+      this.recomputeVisible();
+      this.emit({ type: "filter" }); this.emit({ type: "visible" });
+    }
+    this.select(result.note.id);
+    if (result.created) this.setSaveStatus("saved");
+    return result;
+  }
+
+  unlinkPrimary(id: string): Note | null {
+    const note = this.noteIndex.get(id);
+    if (!note || !primaryMessage(note)) return note ?? null;
+    const meta = { ...note.meta };
+    delete meta[PRIMARY_MESSAGE_KEY];
+    return this.updateNote(id, { meta });
+  }
+
   /**
    * Create an empty note, insert it, select it and return it. The caller is
    * expected to focus the editor immediately.
@@ -392,6 +427,7 @@ export class NoteStore {
   async createNote(partial: Partial<Note> = {}): Promise<Note> {
     this.assertMutationAllowed();
     const note = createNote({ format: "plain", ...partial });
+    validatePrimaryRelations([...this.notes, note]);
     this.notes = [note, ...this.notes];
     this.noteIndex.set(note.id, note);
     this.indexed = [indexNote(note), ...this.indexed];
@@ -432,7 +468,7 @@ export class NoteStore {
    */
   updateNote(
     id: string,
-    change: Partial<Pick<Note, "content" | "format" | "color">>
+    change: Partial<Pick<Note, "content" | "format" | "color" | "meta">>
   ): Note | null {
     this.assertMutationAllowed();
     const current = this.noteIndex.get(id);
@@ -440,6 +476,7 @@ export class NoteStore {
 
     const next = applyNoteChange(current, change, this.now());
     if (next === current) return current; // no-op
+    if (next.meta !== current.meta) validatePrimaryRelations(this.notes.map(note => note.id === id ? next : note));
 
     this.replaceNote(next);
     this.dirty.set(next.id, next);
@@ -613,6 +650,7 @@ export class NoteStore {
 
   private async replaceAllUnderLock(notes: readonly Note[]): Promise<void> {
     if (!this.mutationLocked) throw new StoreMutationLockedError();
+    validatePrimaryRelations(notes);
     const replacement = notes.map((note) => structuredClone(note));
     await this.repository.replaceAll(replacement);
     this.autosave.cancel();

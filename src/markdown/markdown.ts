@@ -19,6 +19,7 @@
 
 import { Marked } from "marked";
 import type { Tokens } from "marked";
+import { decodeMessageLocator, MESSAGE_SCHEME } from "../messages/locator";
 
 export interface MarkdownParseResult {
   html: string;
@@ -91,6 +92,7 @@ function escapeHtml(text: string): string {
  * are allowed; `javascript:`, `data:`, `blob:`, `file:` and friends are not.
  */
 export function isSafeUrl(rawUrl: string): boolean {
+  if (rawUrl.startsWith(MESSAGE_SCHEME)) return decodeMessageLocator(rawUrl) !== null;
   const url = rawUrl.trim();
   if (url.length === 0) return false;
   // Strip characters that browsers ignore but that can hide a scheme.
@@ -148,7 +150,7 @@ function sanitizeElement(element: Element): void {
 
     const value = attribute.value;
 
-    if ((name === "href" || name === "src") && !isSafeUrl(value)) {
+    if ((name === "href" || name === "src") && (!isSafeUrl(value) || (name === "src" && value.startsWith(MESSAGE_SCHEME)))) {
       element.removeAttribute(attribute.name);
       continue;
     }

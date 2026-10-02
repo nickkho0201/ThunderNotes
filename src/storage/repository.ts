@@ -17,6 +17,9 @@ export interface NotesRepository {
 
   create(note: Note): Promise<void>;
 
+  /** Atomically adopt the existing primary owner or create this linked note. */
+  createForMessage?(note: Note): Promise<{ note: Note; created: boolean }>;
+
   update(note: Note): Promise<void>;
 
   delete(id: string): Promise<void>;

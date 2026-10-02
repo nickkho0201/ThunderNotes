@@ -510,5 +510,62 @@
   },
   "dataExportSaveError": {
     "message": "The backup could not be saved. Check the selected folder and try again."
+  },
+  "messageNewNote": {
+    "message": "New note"
+  },
+  "messageOpenNote": {
+    "message": "Open note"
+  },
+  "messageNoStableId": {
+    "message": "Durable linking unavailable for this message"
+  },
+  "messageLinked": {
+    "message": "Linked message: $1"
+  },
+  "messageUnlink": {
+    "message": "Unlink message"
+  },
+  "messageUnlinkConfirm": {
+    "message": "Remove the primary message relationship? The note will not be deleted. Note text and inline message references will remain unchanged."
+  },
+  "messageUnavailable": {
+    "message": "Message unavailable: $1"
+  },
+  "messageUnavailableStatus": {
+    "message": "The message could not be found or opened. The stored reference has been kept."
+  },
+  "messageCommandDescription": {
+    "message": "Insert message link"
+  },
+  "messagePickerTitle": {
+    "message": "Choose a message"
+  },
+  "messagePickerSearch": {
+    "message": "Search subject or sender"
+  },
+  "messageNoResults": {
+    "message": "No messages found"
+  },
+  "messageNoSubject": {
+    "message": "(No subject)"
+  },
+  "messageLoading": {
+    "message": "Loading messages…"
+  },
+  "messageSearchError": {
+    "message": "Could not search messages. Try again."
+  },
+  "messageSearchLimited": {
+    "message": "Search limit reached. Results may be incomplete; refine the search."
+  },
+  "messageNoteError": {
+    "message": "Could not open or create the linked note. Try again after saving or closing the import dialog."
+  },
+  "messageRelationConflict": {
+    "message": "Import would give one message multiple primary notes. Choose another merge policy or unlink the conflicting relation first. No data was replaced."
+  },
+  "messageDraftHint": {
+    "message": "Links to drafts point to the saved version. Saving the draft again can make its previous link unavailable."
   }
 }

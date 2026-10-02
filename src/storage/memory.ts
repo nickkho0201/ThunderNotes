@@ -8,6 +8,7 @@
 import { CURRENT_SCHEMA_VERSION } from "../notes/model";
 import type { Note } from "../notes/model";
 import type { NotesRepository, NotesRepositoryInfo } from "./repository";
+import { primaryMessage, primaryOwner } from "../messages/locator";
 
 export class MemoryNotesRepository implements NotesRepository {
   readonly info: NotesRepositoryInfo = {
@@ -28,6 +29,15 @@ export class MemoryNotesRepository implements NotesRepository {
 
   async create(note: Note): Promise<void> {
     this.notes.set(note.id, { ...note });
+  }
+
+  async createForMessage(note: Note): Promise<{ note: Note; created: boolean }> {
+    const reference = primaryMessage(note);
+    if (!reference) throw new Error("Primary message required");
+    const owner = primaryOwner([...this.notes.values()], reference.locator);
+    if (owner) return { note: structuredClone(owner), created: false };
+    this.notes.set(note.id, structuredClone(note));
+    return { note, created: true };
   }
 
   async update(note: Note): Promise<void> {

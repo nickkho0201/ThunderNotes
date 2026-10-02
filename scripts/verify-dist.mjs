@@ -79,7 +79,7 @@ if (!existsSync(join(distDir, "manifest.json"))) {
   if (manifest.spacesToolbar) fail("spacesToolbar is deprecated; the spaces API must be used instead");
   const permissionErrors = permissionFailures(manifest);
   for (const message of permissionErrors) fail(message);
-  if (permissionErrors.length === 0) ok('permissions: exactly downloads, no optional/host permissions');
+  if (permissionErrors.length === 0) ok('permissions: exactly downloads and messagesRead, no optional/host permissions');
   if (manifest.background?.type !== "module") fail('background.type should be "module"');
   if (!manifest.background?.scripts?.length) fail("background.scripts must list the service worker");
 
@@ -103,6 +103,13 @@ if (!existsSync(join(distDir, "manifest.json"))) {
   // Referenced files must exist.
   for (const [size, path] of Object.entries(manifest.icons ?? {})) {
     assertFile(path, `icons.${size}`);
+  }
+  const action = manifest.message_display_action;
+  if (!action || action.default_popup || action.type === "menu" || action.default_title !== "__MSG_messageNewNote__") {
+    fail("message_display_action must be a native no-popup New note action");
+  } else {
+    assertFile(action.default_icon, "message_display_action.default_icon");
+    ok("native message-display action: local icon, localized label, no popup");
   }
   for (const script of manifest.background?.scripts ?? []) assertFile(script, "background script");
 
