@@ -1,9 +1,9 @@
 # Architecture
 
-This document describes the 0.2.2 baseline and the Unreleased message-link candidate.
-The owner has confirmed the initial message → note → message and unlink flow in
-real Thunderbird. Header polish and remaining message integration paths still
-require QA. For build and contributor workflows,
+This document describes the 0.3.0 implementation. The owner has approved manual
+Thunderbird QA of the major message-link flows, header, picker and search behavior.
+This does not establish guarantees for every platform lifecycle or mailbox state.
+For build and contributor workflows,
 see [Development](DEVELOPMENT.md); for user-facing features, see the
 [README](../README.md).
 
@@ -87,7 +87,7 @@ created-date filters with AND semantics, then sorts by Created/Updated in either
 direction. Search is a trimmed, case-insensitive substring match on cached
 lowercase content. Equal timestamps use the note ID as a deterministic tie-break.
 The format filter exists in store/query/preferences but has no separate toolbar
-filter control in 0.2.2; the editor format switch changes the selected note.
+filter control in the current UI; the editor format switch changes the selected note.
 
 Date boundaries are local midnight and the calendar day after the selected end,
 using calendar arithmetic rather than adding 24 hours. Both user-selected dates
@@ -327,7 +327,7 @@ fabricated received timestamps or draft-creation times.
 
 Primary snapshot dates have the same Date-header semantics: they are not claimed
 to be received-at, draft-created or draft-last-updated timestamps.
-`MessageHeader.folder` is withheld without `accountsRead`; this candidate does
+`MessageHeader.folder` is withheld without `accountsRead`; ThunderNotes does
 not request it. Consequently normal runtime capture uses `kind: "unknown"` for
 Inbox, Sent, Drafts and custom folders under the current permissions. The helper
 can consume supplied `specialUse` evidence (`inbox`, `sent`, `drafts`); absent,
@@ -345,7 +345,7 @@ The public custom-column API remains tracked in
 [Thunderbird bug 1615801](https://bugzilla.mozilla.org/show_bug.cgi?id=1615801);
 its documented implementation discussion explicitly excludes a backport to 128.
 Internal `ThreadPaneColumns` hooks/Experiments are not a supported API for this
-candidate. No chrome injection, tags, star/read changes or mail writes substitute
+implementation. No chrome injection, tags, star/read changes or mail writes substitute
 for a marker. Future support needs a shipped public API and a fresh version and
 permission review; increasing the minimum version alone currently proves nothing.
 

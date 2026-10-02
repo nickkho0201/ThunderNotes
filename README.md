@@ -8,9 +8,7 @@ ThunderNotes is a local notes extension for Mozilla Thunderbird. It adds a
 dedicated Space where you can create a note and start typing, with autosave and
 no required title. It needs no account or cloud backend and has no telemetry.
 
-The current stable release is **0.2.2**.
-This development branch also includes message-linked notes and Markdown `/mail`
-references as an Unreleased candidate awaiting Thunderbird runtime QA.
+This source tree prepares **0.3.0**. Published builds are listed in GitHub Releases.
 
 ## Features
 
@@ -31,7 +29,8 @@ references as an Unreleased candidate awaiting Thunderbird runtime QA.
 - Portable Data v1 JSON backup, Merge import and Restore with a safety backup.
   Export opens the system Save As dialog.
 - Native message action to create/open a primary note, with a confirmed unlink
-  control in the note header. Markdown `/mail` inserts independent message links.
+  control in the note header. Markdown `/mail` inserts independent message links
+  through a searchable picker with a lightweight hover text preview.
 - Responsive two-pane/single-pane layout, live Light/Dark themes, English and Russian.
 
 ## Privacy / local-first

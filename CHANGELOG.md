@@ -1,9 +1,12 @@
 # Changelog
 
 Significant user-visible changes to ThunderNotes are recorded here. New changes
-start under Unreleased. Release dates below are GitHub publication dates in UTC.
+start under Unreleased. Historical release dates are GitHub publication dates in
+UTC; an unpublished versioned entry records its release-preparation date.
 
 ## Unreleased
+
+## 0.3.0 — 2026-10-02
 
 ### Added
 
@@ -11,24 +14,20 @@ start under Unreleased. Release dates below are GitHub publication dates in UTC.
   note-header message navigation, confirmed unlink and unavailable-message state.
 - Markdown `/mail` command with a local metadata picker and independent inline
   message references, without embedding email bodies or attachments.
-- `messagesRead` permission for message metadata lookup/search and navigation.
+- Lightweight message text preview after deliberate picker hover; excerpts are
+  temporary and are not stored or exported.
 
 ### Changed
 
 - Improved `/mail` search responsiveness by reusing picker-session metadata and
   showing cached matches immediately while preserving search coverage and matching.
-- Refined the `/mail` dialog with normalized subject, sender, recipient and partial
-  email search, and a lightweight text preview after deliberate mouse hover.
-  Preview excerpts are temporary and are not stored or exported.
-- Primary message header uses one compact clickable card with a local envelope,
-  prominent subject and secondary participant/date context, plus a separate
-  broken-link button with a localized Unlink tooltip/accessibility label.
-  Relation management sits above a separate note mode/Delete note control row.
-  Unknown direction uses neutral author → recipients presentation. Saved context
-  remains visible when a message is unavailable; older subject-only relations enrich safely when
-  resolvable. Kind stays unknown where supported metadata cannot establish it.
-
-Message linking is a development candidate pending manual Thunderbird QA.
+- Message picker supports case-insensitive subject, sender, recipient and partial
+  email search, including To/Cc/Bcc metadata supplied by Thunderbird.
+- Linked-message header shows a clickable subject and participant/date context,
+  with a separate confirmed unlink action. Saved identity remains visible when
+  the message is unavailable; unknown direction uses neutral presentation.
+- Added the `messagesRead` permission for message lookup/search, navigation and
+  the explicit hover-preview workflow. No attachment reads or network sync added.
 
 ## [0.2.2](https://github.com/nickkho0201/ThunderNotes/releases/tag/v0.2.2) — 2026-10-02
 

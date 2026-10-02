@@ -52,8 +52,8 @@ Tests use `node:test` and `node:assert`; esbuild bundles the TypeScript sources
 before execution. `linkedom` supplies a headless DOM. Storage and platform fakes
 exercise failures and races without opening the user's Thunderbird profile.
 
-The 0.2.2 release passed **533 tests in 79 suites across 25 test files**. Use the
-actual runner summary for future reports rather than treating this as a target.
+Use the actual runner summary for test counts in verification reports. The release
+gate requires all tests to pass, with no unexpected skipped or cancelled tests.
 
 | Area | Coverage |
 | --- | --- |
@@ -142,9 +142,9 @@ regressions, especially:
 - Markdown `/mail` focus, cancellation, keyboard navigation, subject escaping,
   recent/search ordering and internal Preview links, including saved-draft re-saving.
 
-The message-link QA candidate retains manifest version 0.2.2 and is named
-`thundernotes-0.2.2-message-links-qa.xpi`. Preserve the published artifact outside
-`artifacts/` before clean/package replaces it. Temporary `dist/manifest.json`
+QA candidates retain the published version until runtime QA is approved; name
+them distinctly from release artifacts. Preserve published artifacts outside
+`artifacts/` before clean/package replaces them. Temporary `dist/manifest.json`
 testing is useful when same-version installation is refused; use persistent XPI
 installation for restart tests. Do not remove the installed extension merely to
 force an update: preserve notes with a backup and let the owner choose the setup.
