@@ -13,19 +13,22 @@
   position: relative;
 }
 
-.tn-primary-message { display: grid; grid-template-columns: 16px minmax(0, 1fr) auto; align-items: start; gap: 6px; min-width: 0; max-width: 44%; flex: 1 1 260px; }
-.tn-primary-message__icon { margin-top: 5px; color: var(--tn-text-muted); }
-.tn-primary-message__content { min-width: 0; }
-.tn-primary-message__link { display: block; width: 100%; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; text-align: start; text-decoration: underline; text-underline-offset: 2px; border: 0; border-radius: 3px; background: transparent; color: var(--tn-accent); font: inherit; font-size: 14px; cursor: pointer; min-width: 0; padding: 4px; }
-.tn-primary-message__metadata { display: block; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; padding: 0 4px; font-size: 12px; color: var(--tn-text-muted); }
-.tn-primary-message__link:hover { background: var(--tn-hover); }
+.tn-primary-message { display: flex; align-items: center; gap: 6px; min-width: 0; max-width: 44%; flex: 1 1 300px; }
+.tn-primary-message__icon-area { display: flex; align-items: center; justify-content: center; width: 30px; height: 30px; color: var(--tn-text-muted); }
+.tn-primary-message__icon.tn-icon { width: 18px; height: 18px; }
+.tn-primary-message__content { display: grid; gap: 2px; min-width: 0; }
+.tn-primary-message__subject { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-size: 14px; font-weight: 600; }
+.tn-primary-message__link { display: grid; grid-template-columns: 30px minmax(0, 1fr); align-items: center; gap: 6px; flex: 1 1 auto; min-width: 0; min-height: 44px; padding: 5px 7px; text-align: start; border: 1px solid var(--tn-border); border-radius: 5px; background: var(--tn-panel-alt-bg); color: var(--tn-text); font: inherit; cursor: pointer; }
+.tn-primary-message__metadata { display: block; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-size: 12px; color: var(--tn-text-muted); }
+.tn-primary-message__link:hover { background: var(--tn-hover); border-color: var(--tn-border-strong); }
 .tn-primary-message__link:active { background: var(--tn-selected); }
-.tn-primary-message__unlink { border: 1px solid transparent; border-radius: 3px; padding: 4px 6px; background: transparent; color: var(--tn-text-muted); font: inherit; font-size: 12px; white-space: nowrap; cursor: pointer; }
-.tn-primary-message__unlink:hover { background: var(--tn-hover); color: var(--tn-text); }
+.tn-primary-message__unlink { display: flex; align-items: center; justify-content: center; flex: 0 0 30px; width: 30px; height: 30px; border: 1px solid transparent; border-radius: 4px; padding: 0; background: transparent; color: var(--tn-text-muted); cursor: pointer; }
+.tn-primary-message__unlink .tn-icon { width: 18px; height: 18px; }
+.tn-primary-message__unlink:hover { background: var(--tn-hover); color: var(--tn-danger); }
 .tn-primary-message__unlink:focus-visible { outline: 2px solid var(--tn-focus); }
 .tn-primary-message__unlink:active { background: var(--tn-selected); }
-.tn-primary-message.is-unavailable .tn-primary-message__link { color: var(--tn-danger); }
-.tn-primary-message__link:focus-visible { outline: 2px solid var(--tn-focus); }
+.tn-primary-message.is-unavailable .tn-primary-message__link { border-color: var(--tn-danger); }
+.tn-primary-message__link:focus-visible { outline: 2px solid var(--tn-focus); outline-offset: 2px; }
 .tn-mail-command { position: fixed; z-index: 80; max-width: calc(100vw - 16px); background: var(--tn-panel-bg); border: 1px solid var(--tn-border-strong); border-radius: 5px; padding: 4px; box-shadow: var(--tn-shadow); }
 .tn-mail-command button { background: var(--tn-selected); color: var(--tn-selected-text); border: 0; padding: 8px; cursor: pointer; }
 .tn-message-picker { padding: 16px; width: min(560px, calc(100vw - 32px)); }
@@ -392,6 +395,7 @@ body {
 .tn-icon--search { -webkit-mask-image: url("../../assets/icons/search.svg"); mask-image: url("../../assets/icons/search.svg"); }
 .tn-icon--close { -webkit-mask-image: url("../../assets/icons/close.svg"); mask-image: url("../../assets/icons/close.svg"); }
 .tn-icon--mail { -webkit-mask-image: url("../../assets/icons/mail.svg"); mask-image: url("../../assets/icons/mail.svg"); }
+.tn-icon--unlink { -webkit-mask-image: url("../../assets/icons/unlink.svg"); mask-image: url("../../assets/icons/unlink.svg"); }
 .tn-icon--back { -webkit-mask-image: url("../../assets/icons/back.svg"); mask-image: url("../../assets/icons/back.svg"); }
 
 /* The back button only exists in the narrow single-pane layout. */

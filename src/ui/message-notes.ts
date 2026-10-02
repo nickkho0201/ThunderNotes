@@ -19,14 +19,17 @@ export function bindMessageNotes(options: {
   const messages = api.messages, display = api.messageDisplay, document = textarea.ownerDocument;
   const header = document.createElement("div"); header.className = "tn-primary-message"; header.hidden = true;
   const link = document.createElement("button"); link.type = "button"; link.className = "tn-primary-message__link";
+  const iconArea = document.createElement("span"); iconArea.className = "tn-primary-message__icon-area";
   const icon = document.createElement("span"); icon.className = "tn-icon tn-icon--mail tn-primary-message__icon"; icon.setAttribute("aria-hidden", "true");
-  const content = document.createElement("div"); content.className = "tn-primary-message__content";
+  iconArea.append(icon);
+  const content = document.createElement("span"); content.className = "tn-primary-message__content";
+  const subject = document.createElement("span"); subject.className = "tn-primary-message__subject";
   const metadata = document.createElement("span"); metadata.className = "tn-primary-message__metadata";
-  content.append(link, metadata);
+  content.append(subject, metadata); link.append(iconArea, content);
   const unlink = document.createElement("button"); unlink.type = "button"; unlink.className = "tn-primary-message__unlink";
-  unlink.textContent = t("messageUnlinkShort");
+  const unlinkIcon = document.createElement("span"); unlinkIcon.className = "tn-icon tn-icon--unlink"; unlinkIcon.setAttribute("aria-hidden", "true"); unlink.append(unlinkIcon);
   unlink.title = t("messageUnlink"); unlink.setAttribute("aria-label", t("messageUnlink"));
-  header.append(icon, content, unlink);
+  header.append(link, unlink);
   document.getElementById("tn-md-mode")?.before(header);
   let renderedKey = "", relationSignature = "", sequence = 0;
   const navigate = async (locator: MessageLocator): Promise<void> => {
@@ -55,7 +58,7 @@ export function bindMessageNotes(options: {
     if (!reference) return;
     const present = (snapshot: MessageReference, unavailable = false): void => {
       const formatted = formatPrimaryMessage(snapshot, unavailable);
-      link.textContent = formatted.subject; link.title = formatted.title; link.setAttribute("aria-label", formatted.title);
+      subject.textContent = formatted.subject; link.title = formatted.title; link.setAttribute("aria-label", formatted.title);
       metadata.textContent = formatted.metadata; metadata.title = formatted.metadata; metadata.hidden = !formatted.metadata;
       header.classList.toggle("is-unavailable", unavailable);
     };

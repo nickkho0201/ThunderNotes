@@ -256,10 +256,12 @@ messages keep their saved relation and display an unavailable state.
 The note-header formatter uses the existing UI-locale date/time formatter.
 All kinds display neutral author → recipients metadata without a visible unknown
 badge; kind remains an internal snapshot value. A consistent
-local envelope icon identifies every relation. The subject is the primary navigation
-link; participants and date form a secondary line. Truncated text retains full
-title/ARIA identity. The secondary unlink control has a visible localized text
-label and keyboard/focus states. On narrow layouts the relation occupies its own row.
+local envelope icon identifies every relation inside one compact navigation card.
+The card contains a primary subject line and secondary participants/date line;
+its entire area opens the message, with one full title/ARIA identity. A separate
+local broken-link icon button has a localized title/ARIA label and requires
+confirmation. Both controls and the envelope are vertically centered. On narrow
+layouts the relation occupies its own row, with text truncation inside the card.
 Unavailable presentation retains all saved identity fields and manual unlink.
 
 Subject-only candidate references and incomplete optional snapshots remain valid.

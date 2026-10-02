@@ -156,16 +156,25 @@ describe("primary context persistence and Portable Data v1", () => {
   });
   it("UI style uses local icon, truncation and existing theme/focus states", () => {
     const css = readFileSync("src/ui/notes.css", "utf8");
-    assert.match(css, /\.tn-primary-message__link\s*\{[^}]*text-overflow:\s*ellipsis/);
+    assert.match(css, /\.tn-primary-message__subject\s*\{[^}]*text-overflow:\s*ellipsis/);
     assert.match(css, /\.tn-primary-message__unlink:active\s*\{[^}]*var\(--tn-selected\)/);
     assert.match(css, /\.tn-primary-message__unlink:focus-visible/); assert.match(css, /\.tn-primary-message__unlink:hover/);
-    assert.match(css, /\.tn-primary-message__link[^}]*font-size:\s*14px/);
+    assert.match(css, /\.tn-primary-message__subject[^}]*font-size:\s*14px[^}]*font-weight:\s*600/);
     assert.match(css, /@media[^}]*\.tn-primary-message[^}]*max-width:\s*100%/);
     assert.ok(readFileSync("assets/icons/mail.svg", "utf8").includes("<svg"));
     assert.match(css, /\.tn-icon--mail[^}]*assets\/icons\/mail\.svg/);
     assert.match(css, /\.tn-primary-message__metadata[^}]*text-overflow:\s*ellipsis/);
-    assert.match(css, /grid-template-columns:\s*16px minmax\(0, 1fr\) auto/);
+    assert.match(css, /grid-template-columns:\s*30px minmax\(0, 1fr\)/);
     assert.match(css, /@media[^}]*\.tn-primary-message[^}]*flex-basis:\s*100%/);
+    assert.match(css, /\.tn-primary-message\s*\{[^}]*align-items:\s*center/);
+    assert.match(css, /\.tn-primary-message__link\s*\{[^}]*align-items:\s*center[^}]*border:\s*1px solid var\(--tn-border\)[^}]*border-radius:\s*5px[^}]*background:\s*var\(--tn-panel-alt-bg\)/);
+    assert.match(css, /\.tn-primary-message__link:hover\s*\{[^}]*background:\s*var\(--tn-hover\)[^}]*border-color:/);
+    assert.match(css, /\.tn-primary-message__link:focus-visible\s*\{[^}]*outline:\s*2px solid var\(--tn-focus\)/);
+    assert.match(css, /\.tn-primary-message__icon-area\s*\{[^}]*align-items:\s*center[^}]*width:\s*30px[^}]*height:\s*30px/);
+    assert.match(css, /\.tn-primary-message__icon\.tn-icon\s*\{[^}]*width:\s*18px[^}]*height:\s*18px/);
+    assert.match(css, /\.tn-primary-message__unlink\s*\{[^}]*align-items:\s*center[^}]*flex:\s*0 0 30px[^}]*width:\s*30px[^}]*height:\s*30px/);
+    assert.match(css, /\.tn-icon--unlink[^}]*assets\/icons\/unlink\.svg/);
+    assert.ok(readFileSync("assets/icons/unlink.svg", "utf8").includes("<svg"));
     for (const locale of ["en", "ru"]) {
       const json = JSON.parse(readFileSync(`_locales/${locale}/messages.json`, "utf8"));
       assert.equal(json.messageUnlink.message, locale === "en" ? "Unlink message" : "Отвязать письмо");

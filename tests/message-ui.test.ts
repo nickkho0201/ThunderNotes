@@ -180,7 +180,7 @@ describe("primary note UI and internal Preview dispatch", () => {
     const f = await fixture(); f.headers.length = 0;
     f.document.dispatchEvent(new f.window.Event("visibilitychange")); await tick();
     const link = f.document.querySelector('.tn-primary-message__link') as HTMLButtonElement;
-    assert.equal(link.textContent, "Request"); assert.ok(f.document.querySelector(".tn-primary-message__metadata")?.textContent?.includes("Message unavailable")); link.click(); await tick();
+    assert.equal(link.querySelector(".tn-primary-message__subject")?.textContent, "Request"); assert.ok(f.document.querySelector(".tn-primary-message__metadata")?.textContent?.includes("Message unavailable")); link.click(); await tick();
     assert.ok(f.banners[0]?.includes("could not be found")); assert.deepEqual(primaryMessage(f.store.getSelectedNote()!), f.snapshot);
   });
   it("valid Preview internal click opens mail without default/external navigation", async () => {
@@ -199,31 +199,32 @@ describe("primary note UI and internal Preview dispatch", () => {
     const f = await fixture(); f.headers.length = 0;
     const link = f.document.querySelector('.tn-primary-message__link') as HTMLButtonElement;
     link.click(); await tick();
-    assert.equal(link.textContent, "Request"); assert.ok(f.document.querySelector(".tn-primary-message__metadata")?.textContent?.includes("Message unavailable"));
+    assert.equal(link.querySelector(".tn-primary-message__subject")?.textContent, "Request"); assert.ok(f.document.querySelector(".tn-primary-message__metadata")?.textContent?.includes("Message unavailable"));
     assert.ok(f.banners[0]?.includes("could not be found"));
     assert.deepEqual(primaryMessage(f.store.getSelectedNote()!), f.snapshot);
   });
-  it("uses a stable envelope, primary subject and explicit accessible unlink", async () => {
+  it("uses a coherent envelope card and a separate accessible unlink icon", async () => {
     const f = await fixture();
     const unlink = f.document.querySelector('.tn-primary-message__unlink') as HTMLButtonElement;
     assert.equal(unlink.getAttribute("aria-label"), "Unlink message"); assert.equal(unlink.title, "Unlink message");
-    assert.equal(unlink.textContent, "Unlink"); assert.equal(unlink.textContent.includes("×"), false);
+    assert.equal(unlink.textContent, ""); assert.ok(unlink.querySelector('.tn-icon--unlink[aria-hidden="true"]'));
+    assert.equal(unlink.querySelector(".tn-icon--close"), null);
     assert.ok(f.document.querySelector('.tn-icon--mail[aria-hidden="true"]'));
     assert.equal(f.document.querySelector(".tn-primary-message__kind"), null);
     unlink.focus(); assert.equal(f.document.activeElement, unlink);
     const link = f.document.querySelector('.tn-primary-message__link') as HTMLButtonElement;
-    assert.equal(link.textContent, "Request"); assert.ok(link.title.includes("Author")); assert.ok(link.title.includes("Request"));
+    assert.equal(link.querySelector(".tn-primary-message__subject")?.textContent, "Request"); assert.ok(link.title.includes("Author")); assert.ok(link.title.includes("Request"));
     assert.doesNotMatch(link.title, /unknown|\?/i);
     assert.ok(f.document.querySelector(".tn-primary-message__metadata")?.textContent?.startsWith("Author · "));
     assert.equal(link.getAttribute("aria-label"), link.title);
   });
   for (const locale of ["en", "ru"]) {
-    it("localizes explicit unlink and empty subject in " + locale, async () => {
+    it("localizes unlink tooltip/ARIA and empty subject in " + locale, async () => {
       const f = await fixture(true, locale, { ...reference, subject: "" });
       const link = f.document.querySelector('.tn-primary-message__link') as HTMLButtonElement;
       const unlink = f.document.querySelector('.tn-primary-message__unlink') as HTMLButtonElement;
-      assert.equal(link.textContent, locale === "en" ? "(No subject)" : "(Без темы)");
-      assert.equal(unlink.textContent, locale === "en" ? "Unlink" : "Отвязать");
+      assert.equal(link.querySelector(".tn-primary-message__subject")?.textContent, locale === "en" ? "(No subject)" : "(Без темы)");
+      assert.equal(unlink.textContent, ""); assert.ok(unlink.querySelector(".tn-icon--unlink"));
       assert.equal(unlink.getAttribute("aria-label"), locale === "en" ? "Unlink message" : "Отвязать письмо");
       assert.ok(f.document.querySelector('.tn-icon--mail'));
       assert.doesNotMatch(f.document.querySelector('.tn-primary-message')!.textContent!, /unknown|Неизвестно|\?/i);
@@ -234,16 +235,50 @@ describe("primary note UI and internal Preview dispatch", () => {
     const f = await fixture(false, "en", { ...reference, subject, recipients });
     const link = f.document.querySelector('.tn-primary-message__link') as HTMLButtonElement;
     const metadata = f.document.querySelector('.tn-primary-message__metadata') as HTMLElement;
-    assert.equal(link.textContent, subject); assert.ok(link.title.includes(subject));
+    assert.equal(link.querySelector(".tn-primary-message__subject")?.textContent, subject); assert.ok(link.title.includes(subject));
     assert.ok(metadata.textContent?.startsWith("Author → " + recipients.join(", ") + " · "));
     assert.equal(metadata.title, metadata.textContent);
     assert.ok(link.getAttribute("aria-label")?.includes(recipients.join(", ")));
-    assert.equal(link.contains(metadata), false);
+    assert.equal(link.contains(metadata), true);
     f.headers.length = 0; f.document.dispatchEvent(new f.window.Event("visibilitychange")); await tick();
-    assert.equal(link.textContent, subject); assert.ok(metadata.textContent?.includes(recipients.join(", ")));
+    assert.equal(link.querySelector(".tn-primary-message__subject")?.textContent, subject); assert.ok(metadata.textContent?.includes(recipients.join(", ")));
     assert.ok(metadata.textContent?.startsWith("Message unavailable · "));
     assert.ok(f.document.querySelector('.tn-icon--mail'));
     assert.deepEqual(primaryMessage(f.store.getSelectedNote()!)?.recipients, recipients);
+  });
+  it("the whole card including envelope and metadata navigates; unlink is separate", async () => {
+    const f = await fixture();
+    const card = f.document.querySelector('.tn-primary-message__link') as HTMLButtonElement;
+    const unlink = f.document.querySelector('.tn-primary-message__unlink') as HTMLButtonElement;
+    assert.equal(card.tagName, "BUTTON"); assert.equal(card.type, "button");
+    assert.equal(card.querySelectorAll("button, a, input, [tabindex]").length, 0);
+    assert.ok(card.querySelector('.tn-icon--mail'));
+    assert.equal(card.contains(unlink), false); assert.equal(card.parentElement, unlink.parentElement);
+    card.focus(); assert.equal(f.document.activeElement, card);
+    for (const target of [card, card.querySelector('.tn-icon--mail')!, card.querySelector('.tn-primary-message__subject')!, card.querySelector('.tn-primary-message__metadata')!]) {
+      const before = f.opens.length;
+      target.dispatchEvent(new f.window.Event("click", { bubbles: true })); await tick();
+      assert.equal(f.opens.length, before + 1);
+    }
+    const before = f.opens.length;
+    f.window.confirm = () => false;
+    unlink.querySelector('.tn-icon--unlink')!.dispatchEvent(new f.window.Event("click", { bubbles: true }));
+    await tick(); assert.equal(f.opens.length, before);
+    assert.deepEqual(primaryMessage(f.store.getSelectedNote()!), f.snapshot);
+  });
+  it("unavailable retains the same navigable card, envelope and independent unlink", async () => {
+    const f = await fixture(), card = f.document.querySelector('.tn-primary-message__link') as HTMLButtonElement;
+    const icon = card.querySelector('.tn-icon--mail'), metadata = card.querySelector('.tn-primary-message__metadata');
+    f.headers.length = 0; f.document.dispatchEvent(new f.window.Event("visibilitychange")); await tick();
+    assert.equal(f.document.querySelector('.tn-primary-message__link'), card);
+    assert.equal(card.querySelector('.tn-icon--mail'), icon); assert.equal(card.querySelector('.tn-primary-message__metadata'), metadata);
+    assert.ok(card.parentElement!.classList.contains("is-unavailable"));
+    assert.equal(card.querySelector('.tn-primary-message__subject')?.textContent, "Request");
+    assert.ok(metadata?.textContent?.startsWith("Message unavailable · Author"));
+    metadata!.dispatchEvent(new f.window.Event("click", { bubbles: true })); await tick();
+    assert.ok(f.banners[0]?.includes("could not be found"));
+    assert.deepEqual(primaryMessage(f.store.getSelectedNote()!), f.snapshot);
+    assert.ok(card.parentElement!.querySelector('.tn-primary-message__unlink .tn-icon--unlink'));
   });
   it("an unresolved old subject-only relation stays visible and is not rewritten", async () => {
     const f = await fixture(true), note = f.store.getSelectedNote()!;
