@@ -346,6 +346,18 @@ describe("primary note UI and internal Preview dispatch", () => {
 });
 
 describe("native message action and background/page handshake", () => {
+  it("ignores malformed runtime types and invalidates action updates when their tab closes", async () => {
+    dom(); const mock = api(); let removed!: (tabId: number, info: { windowId: number; isWindowClosing: boolean }) => void, displayed!: (tab: MessageTab, messages: MessageList) => void;
+    let completeTitle!: () => void; const enabled: number[] = [];
+    mock.browser.tabs = { async query() { return []; }, async create() {}, onRemoved: { addListener: fn => { removed = fn; } } };
+    mock.browser.messageDisplay!.onMessagesDisplayed.addListener = fn => { displayed = fn; };
+    mock.browser.messageDisplayAction = { setTitle: () => new Promise(resolve => { completeTitle = resolve; }),
+      async enable(tabId) { enabled.push(tabId!); }, async disable() {}, onClicked: { addListener() {} } };
+    startMessageActions(mock.browser, new MemoryNotesRepository());
+    assert.equal(mock.listeners[0]!({ type: 42 }, { url: "moz-extension://test/notes.html" }, () => {}), false);
+    displayed({ id: 1 }, { messages: mock.headers }); await tick();
+    removed(1, { windowId: 1, isWindowClosing: false }); completeTitle(); await tick(); assert.deepEqual(enabled, []);
+  });
   it("sets independent tab titles and navigates repeated clicks via one intent", async () => {
     dom(); const mock = api(), titles = new Map<number, string>(), opened: unknown[] = [];
     const data: Record<string, unknown> = {};

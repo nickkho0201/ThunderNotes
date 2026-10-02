@@ -41,6 +41,20 @@ function fixture(locale = "en", count = 2) {
 }
 
 describe("hover-only ephemeral message picker preview", () => {
+  it("releases hidden rows and identity on close and ignores an outstanding excerpt", async t => {
+    t.mock.timers.enable({ apis: ["setTimeout"] }); const f = fixture();
+    let complete!: (parts: { contentType: string; content: string }[]) => void;
+    f.api.listInlineTextParts = () => new Promise(resolve => { complete = resolve; });
+    const result = f.picker.open(); await settle();
+    f.event(f.row(), "mouseenter"); t.mock.timers.tick(350); await settle();
+    assert.ok(f.picker.preview.textContent?.includes("Subject 1"));
+    f.key("Escape"); assert.equal(await result, null);
+    assert.equal(f.picker.list.children.length, 0); assert.equal(f.picker.preview.textContent, "");
+    assert.equal(f.picker.search.getAttribute("aria-activedescendant"), null);
+    assert.equal(f.picker.list.getAttribute("aria-busy"), "false");
+    complete([{ contentType: "text/plain", content: "Late body" }]); await settle();
+    assert.equal(f.picker.preview.textContent, ""); assert.equal(f.picker.preview.hidden, true);
+  });
   it("does not read bodies on opening, keyboard selection or a short hover", async t => {
     t.mock.timers.enable({ apis: ["setTimeout"] }); const f = fixture(); const result = f.picker.open(); await settle();
     f.key("ArrowDown"); assert.equal(f.reads.length, 0);

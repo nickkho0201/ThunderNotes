@@ -30,11 +30,13 @@ export function startMessageActions(api: ThunderbirdBrowser, repository: NotesRe
       const exists = reference ? await owner(reference) : false;
       if (versions.get(tabId) !== version) return;
       await api.messageDisplayAction.setTitle({ tabId, title: t(reference ? exists ? "messageOpenNote" : "messageNewNote" : "messageNoStableId") });
+      if (versions.get(tabId) !== version) return;
       if (reference) await api.messageDisplayAction.enable(tabId); else await api.messageDisplayAction.disable(tabId);
     } catch { if (versions.get(tabId) === version) await api.messageDisplayAction.disable(tabId).catch(() => {}); }
   };
   const refreshAll = async (): Promise<void> => { for (const tab of await api.tabs?.query({}) ?? []) await refresh(tab); };
   api.messageDisplay?.onMessagesDisplayed.addListener(tab => { void refresh(tab); });
+  api.tabs?.onRemoved?.addListener(tabId => { versions.delete(tabId); });
   const clicks = new Map<string, Promise<void>>();
   api.messageDisplayAction?.onClicked.addListener(tab => {
     void (async () => {
@@ -61,7 +63,7 @@ export function startMessageActions(api: ThunderbirdBrowser, repository: NotesRe
   api.runtime.onMessage.addListener((message, sender, respond) => {
     if (!message || typeof message !== "object") return false;
     const raw = message as { type?: string; page?: string; id?: string; windowId?: number };
-    if (!raw.type?.startsWith("thundernotes:mail-")) return false;
+    if (typeof raw.type !== "string" || !raw.type.startsWith("thundernotes:mail-")) return false;
     const source = sender as { url?: string } | null;
     if (source?.url?.split(/[?#]/)[0] !== api.runtime.getURL("notes.html")) return false;
     let work: Promise<unknown> | null = null;

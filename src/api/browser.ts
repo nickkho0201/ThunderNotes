@@ -127,6 +127,7 @@ export interface RuntimeApi {
 
 /** The extension message-tab surface, as returned by `tabs.create`. */
 export interface TabsApi {
+  onRemoved?: { addListener(listener: (tabId: number, removeInfo: { windowId: number; isWindowClosing: boolean }) => void): void };
   create(createProperties: { url?: string; active?: boolean }): Promise<unknown>;
   query(queryInfo: Record<string, unknown>): Promise<Array<{ id?: number; url?: string; windowId?: number }>>;
   getCurrent?(): Promise<MessageTab | undefined>;

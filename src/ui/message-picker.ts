@@ -95,10 +95,14 @@ export class MessagePicker {
   private clearPreview(): void {
     this.previewSequence++; if (this.hoverTimer) clearTimeout(this.hoverTimer); this.hoverTimer = null;
     this.preview.hidden = true; this.previewBody.textContent = "";
+    this.previewSubject.textContent = ""; this.previewIdentity.textContent = "";
   }
   private close(result: MessageReference | null): void {
     this.sequence++; this.controller?.abort(); this.clearPreview(); this.cache.clear();
     this.searchSession?.dispose(); this.searchSession = null;
+    this.controller = null; this.results = []; this.highlighted = 0; this.list.replaceChildren();
+    this.list.setAttribute("aria-busy", "false"); this.search.removeAttribute("aria-activedescendant");
+    this.search.value = ""; this.status.textContent = "";
     if (this.debounce) clearTimeout(this.debounce); this.debounce = null;
     const finish = this.finish; this.finish = null; this.search.setAttribute("aria-expanded", "false");
     if (this.dialog.open) this.dialog.close();
