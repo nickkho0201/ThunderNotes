@@ -481,5 +481,11 @@
   },
   "messageTo": {
     "message": "Кому: $1"
+  },
+  "messageUnlinkShort": {
+    "message": "Отвязать"
+  },
+  "messageUnavailableLabel": {
+    "message": "Письмо недоступно"
   }
 }

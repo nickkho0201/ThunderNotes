@@ -254,10 +254,12 @@ it leaves content, inline references and unrelated metadata untouched. Missing
 messages keep their saved relation and display an unavailable state.
 
 The note-header formatter uses the existing UI-locale date/time formatter.
-Incoming displays author; outgoing/draft displays To recipients; unknown displays
-explicit From/To labels instead of guessing direction. A compact localized kind
-badge and a readable, truncated navigation link share a full title/ARIA identity.
-The secondary unlink control reuses the local close icon and keyboard/focus states.
+All kinds display neutral author → recipients metadata without a visible unknown
+badge; kind remains an internal snapshot value. A consistent
+local envelope icon identifies every relation. The subject is the primary navigation
+link; participants and date form a secondary line. Truncated text retains full
+title/ARIA identity. The secondary unlink control has a visible localized text
+label and keyboard/focus states. On narrow layouts the relation occupies its own row.
 Unavailable presentation retains all saved identity fields and manual unlink.
 
 Subject-only candidate references and incomplete optional snapshots remain valid.

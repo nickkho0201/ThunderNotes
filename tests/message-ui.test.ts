@@ -1,5 +1,6 @@
 import { describe, it, afterEach } from "node:test";
 import assert from "node:assert/strict";
+import { readFileSync } from "node:fs";
 import { parseHTML } from "linkedom";
 import { mailToken, bindMailCommand } from "../src/ui/mail-command.ts";
 import { bindMarkdownEditing } from "../src/ui/markdown-edit.ts";
@@ -10,7 +11,7 @@ import { MessageNavigation } from "../src/messages/navigation.ts";
 import { NoteStore } from "../src/ui/store.ts";
 import { MemoryNotesRepository } from "../src/storage/memory.ts";
 import { createNote } from "../src/notes/model.ts";
-import { PRIMARY_MESSAGE_KEY, primaryMessage, encodeMessageLocator } from "../src/messages/locator.ts";
+import { PRIMARY_MESSAGE_KEY, primaryMessage, encodeMessageLocator, type MessageReference } from "../src/messages/locator.ts";
 import { parseMarkdown } from "../src/markdown/markdown.ts";
 import type { EditorView } from "../src/ui/editor-view.ts";
 import type { ThunderbirdBrowser, MessageHeader, MessageTab, MessageList } from "../src/api/browser.ts";
@@ -153,16 +154,18 @@ describe("message picker keyboard, query and cancellation", () => {
 });
 
 describe("primary note UI and internal Preview dispatch", () => {
-  async function fixture(missing = false) {
+  async function fixture(missing = false, locale = "en", snapshot: MessageReference = reference) {
     const f = dom(), mock = api(), repository = new MemoryNotesRepository(), store = new NoteStore(repository, { autosaveDelayMs: 0 });
     if (missing) mock.headers.length = 0;
-    await store.init(); await store.createNote({ meta: { [PRIMARY_MESSAGE_KEY]: reference } }); cleanups.push(() => store.dispose());
+    const catalog = JSON.parse(readFileSync(`_locales/${locale}/messages.json`, "utf8")) as Record<string, { message: string }>;
+    mock.browser.i18n = { getUILanguage: () => locale, getMessage: (key, subs) => catalog[key]?.message.replace(/\$(\d+)/g, (_, index: string) => (Array.isArray(subs) ? subs : [subs])[Number(index) - 1] ?? "") ?? "" };
+    await store.init(); await store.createNote({ meta: { [PRIMARY_MESSAGE_KEY]: snapshot } }); cleanups.push(() => store.dispose());
     const banners: string[] = [], preview = f.document.getElementById("preview")!;
     const editor = { focus() {}, focusOpened() {}, applySourceEdit() {} } as unknown as EditorView;
     bindMessageNotes({ store, editor, textarea: f.textarea, preview, showEditor() {}, onMessage: message => banners.push(message) });
-    await tick(); const snapshot = primaryMessage(store.getSelectedNote()!)!;
-    assert.equal(snapshot.subject, reference.subject); assert.deepEqual(snapshot.locator, reference.locator);
-    return { ...f, ...mock, repository, store, banners, preview, snapshot };
+    await tick(); const savedSnapshot = primaryMessage(store.getSelectedNote()!)!;
+    assert.equal(savedSnapshot.subject, snapshot.subject); assert.deepEqual(savedSnapshot.locator, reference.locator);
+    return { ...f, ...mock, repository, store, banners, preview, snapshot: savedSnapshot };
   }
   it("unlink requires confirm; cancel changes nothing; confirm preserves content", async () => {
     const f = await fixture(); const before = f.store.getSelectedNote()!;
@@ -177,7 +180,7 @@ describe("primary note UI and internal Preview dispatch", () => {
     const f = await fixture(); f.headers.length = 0;
     f.document.dispatchEvent(new f.window.Event("visibilitychange")); await tick();
     const link = f.document.querySelector('.tn-primary-message__link') as HTMLButtonElement;
-    assert.ok(link.textContent?.includes("Message unavailable:")); assert.ok(link.textContent?.includes("Request")); link.click(); await tick();
+    assert.equal(link.textContent, "Request"); assert.ok(f.document.querySelector(".tn-primary-message__metadata")?.textContent?.includes("Message unavailable")); link.click(); await tick();
     assert.ok(f.banners[0]?.includes("could not be found")); assert.deepEqual(primaryMessage(f.store.getSelectedNote()!), f.snapshot);
   });
   it("valid Preview internal click opens mail without default/external navigation", async () => {
@@ -196,19 +199,51 @@ describe("primary note UI and internal Preview dispatch", () => {
     const f = await fixture(); f.headers.length = 0;
     const link = f.document.querySelector('.tn-primary-message__link') as HTMLButtonElement;
     link.click(); await tick();
-    assert.ok(link.textContent?.includes("Message unavailable:")); assert.ok(link.textContent?.includes("Request"));
+    assert.equal(link.textContent, "Request"); assert.ok(f.document.querySelector(".tn-primary-message__metadata")?.textContent?.includes("Message unavailable"));
     assert.ok(f.banners[0]?.includes("could not be found"));
     assert.deepEqual(primaryMessage(f.store.getSelectedNote()!), f.snapshot);
   });
-  it("uses an accessible secondary icon and preserves full identity in title", async () => {
+  it("uses a stable envelope, primary subject and explicit accessible unlink", async () => {
     const f = await fixture();
     const unlink = f.document.querySelector('.tn-primary-message__unlink') as HTMLButtonElement;
     assert.equal(unlink.getAttribute("aria-label"), "Unlink message"); assert.equal(unlink.title, "Unlink message");
-    assert.equal(unlink.textContent, ""); assert.ok(unlink.querySelector('.tn-icon--close[aria-hidden="true"]'));
+    assert.equal(unlink.textContent, "Unlink"); assert.equal(unlink.textContent.includes("×"), false);
+    assert.ok(f.document.querySelector('.tn-icon--mail[aria-hidden="true"]'));
+    assert.equal(f.document.querySelector(".tn-primary-message__kind"), null);
     unlink.focus(); assert.equal(f.document.activeElement, unlink);
     const link = f.document.querySelector('.tn-primary-message__link') as HTMLButtonElement;
-    assert.ok(link.title.includes("From: Author")); assert.ok(link.title.includes("Request")); assert.ok(link.title.includes("Message type unknown"));
+    assert.equal(link.textContent, "Request"); assert.ok(link.title.includes("Author")); assert.ok(link.title.includes("Request"));
+    assert.doesNotMatch(link.title, /unknown|\?/i);
+    assert.ok(f.document.querySelector(".tn-primary-message__metadata")?.textContent?.startsWith("Author · "));
     assert.equal(link.getAttribute("aria-label"), link.title);
+  });
+  for (const locale of ["en", "ru"]) {
+    it("localizes explicit unlink and empty subject in " + locale, async () => {
+      const f = await fixture(true, locale, { ...reference, subject: "" });
+      const link = f.document.querySelector('.tn-primary-message__link') as HTMLButtonElement;
+      const unlink = f.document.querySelector('.tn-primary-message__unlink') as HTMLButtonElement;
+      assert.equal(link.textContent, locale === "en" ? "(No subject)" : "(Без темы)");
+      assert.equal(unlink.textContent, locale === "en" ? "Unlink" : "Отвязать");
+      assert.equal(unlink.getAttribute("aria-label"), locale === "en" ? "Unlink message" : "Отвязать письмо");
+      assert.ok(f.document.querySelector('.tn-icon--mail'));
+      assert.doesNotMatch(f.document.querySelector('.tn-primary-message')!.textContent!, /unknown|Неизвестно|\?/i);
+    });
+  }
+  it("preserves long subject and complete participants in separate tooltip-backed lines", async () => {
+    const subject = "Long subject ".repeat(100), recipients = ["Bob <bob@test>", "Carol <carol@test>"];
+    const f = await fixture(false, "en", { ...reference, subject, recipients });
+    const link = f.document.querySelector('.tn-primary-message__link') as HTMLButtonElement;
+    const metadata = f.document.querySelector('.tn-primary-message__metadata') as HTMLElement;
+    assert.equal(link.textContent, subject); assert.ok(link.title.includes(subject));
+    assert.ok(metadata.textContent?.startsWith("Author → " + recipients.join(", ") + " · "));
+    assert.equal(metadata.title, metadata.textContent);
+    assert.ok(link.getAttribute("aria-label")?.includes(recipients.join(", ")));
+    assert.equal(link.contains(metadata), false);
+    f.headers.length = 0; f.document.dispatchEvent(new f.window.Event("visibilitychange")); await tick();
+    assert.equal(link.textContent, subject); assert.ok(metadata.textContent?.includes(recipients.join(", ")));
+    assert.ok(metadata.textContent?.startsWith("Message unavailable · "));
+    assert.ok(f.document.querySelector('.tn-icon--mail'));
+    assert.deepEqual(primaryMessage(f.store.getSelectedNote()!)?.recipients, recipients);
   });
   it("an unresolved old subject-only relation stays visible and is not rewritten", async () => {
     const f = await fixture(true), note = f.store.getSelectedNote()!;

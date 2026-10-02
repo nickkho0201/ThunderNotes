@@ -65,37 +65,62 @@ describe("primary message snapshot and conservative kind", () => {
 });
 
 describe("locale-aware primary message presentation", () => {
-  it("incoming uses From; outgoing and draft use To", () => localized("en", () => {
+  it("separates the primary subject from participants and date for every known kind", () => localized("en", () => {
     const incoming = formatPrimaryMessage({ ...primaryMessageReference(header)!, kind: "incoming" });
-    assert.ok(incoming.text.startsWith(header.author)); assert.equal(incoming.text.includes("Bob"), false); assert.equal(incoming.badge, "In");
+    assert.equal(incoming.subject, "Request");
+    assert.equal(incoming.metadata, header.author + " → Bob <bob@test> · " + formatDateTime(header.date.getTime()));
     for (const kind of ["outgoing", "draft"] as const) {
       const display = formatPrimaryMessage({ ...primaryMessageReference(header)!, kind });
-      assert.ok(display.text.startsWith("Bob")); assert.equal(display.text.includes("Alice"), false); assert.ok(display.title.includes(kind === "draft" ? "Draft" : "Outgoing"));
+      assert.equal(display.subject, "Request");
+      assert.equal(display.metadata, header.author + " → Bob <bob@test> · " + formatDateTime(header.date.getTime()));
     }
-    assert.ok(incoming.text.endsWith(formatDateTime(header.date.getTime())));
   }));
-  it("unknown explicitly labels From/To without pretending to know direction", () => localized("en", () => {
+  it("unknown uses neutral author → recipients without a question or diagnostic label", () => localized("en", () => {
     const display = formatPrimaryMessage(primaryMessageReference(header)!);
-    assert.equal(display.badge, "?"); assert.ok(display.text.includes("From: Alice")); assert.ok(display.text.includes("To: Bob"));
-    assert.ok(display.title.includes("Message type unknown"));
+    assert.equal(display.metadata, "Alice <alice@test> → Bob <bob@test> · " + formatDateTime(header.date.getTime()));
+    assert.equal(display.subject, "Request");
+    assert.doesNotMatch(display.title, /unknown|From:|To:|\?/i);
+    assert.equal("badge" in display, false);
   }));
-  it("missing subject/correspondent/date remains readable", () => localized("en", () => {
+  for (const [author, recipients, expected] of [
+    ["Alice", ["Bob", "Carol"], "Alice → Bob, Carol"],
+    [undefined, ["Bob"], "Bob"],
+    ["Alice", undefined, "Alice"],
+    [" ", [" "], ""],
+  ] as const) {
+    it("omits missing participant separators: " + (expected || "no participants"), () => localized("en", () => {
+      const display = formatPrimaryMessage({ ...old, kind: "unknown", author, recipients: recipients ? [...recipients] : undefined });
+      assert.equal(display.metadata, expected);
+      assert.equal(display.subject, "Request");
+      assert.equal(display.title, "Linked message: Request" + (expected ? " · " + expected : ""));
+    }));
+  }
+  it("date-only identity remains readable", () => localized("en", () => {
+    assert.equal(formatPrimaryMessage({ ...old, date: header.date.getTime() }).metadata, formatDateTime(header.date.getTime()));
+  }));
+  it("missing subject/correspondent/date and old subject-only snapshots remain readable", () => localized("en", () => {
     const display = formatPrimaryMessage({ ...old, subject: "", kind: "draft", recipients: [" "] });
-    assert.equal(display.text, "(No subject)"); assert.ok(display.title.includes("Draft"));
-    assert.equal(formatPrimaryMessage(old).text, "Request");
+    assert.equal(display.subject, "(No subject)"); assert.equal(display.metadata, "");
+    assert.equal(formatPrimaryMessage(old).subject, "Request");
   }));
-  it("RU/EN localize kind and date without changing stored source", () => {
+  it("RU/EN localize empty subject, status and date without changing stored source", () => {
     const snapshot = primaryMessageReference(header)!, before = JSON.stringify(snapshot);
-    const ru = localized("ru", () => formatPrimaryMessage({ ...snapshot, kind: "draft" }));
-    assert.equal(ru.badge, "Черн"); assert.ok(ru.title.includes("Черновик"));
-    assert.equal(localized("ru", () => formatPrimaryMessage({ ...old, subject: "" })).text, "(Без темы)");
+    for (const locale of ["en", "ru"]) localized(locale, () => {
+      const display = formatPrimaryMessage({ ...snapshot, subject: "" }, true);
+      assert.equal(display.subject, locale === "en" ? "(No subject)" : "(Без темы)");
+      assert.ok(display.metadata.startsWith(locale === "en" ? "Message unavailable · " : "Письмо недоступно · "));
+      assert.ok(display.metadata.endsWith(formatDateTime(snapshot.date!)));
+      assert.doesNotMatch(display.title, /unknown|Неизвестно|\?/i);
+    });
     assert.equal(JSON.stringify(snapshot), before);
   });
-  it("unavailable preserves full saved identity and long subjects", () => localized("en", () => {
-    const snapshot = { ...primaryMessageReference(header)!, subject: "Long ".repeat(100) };
+  it("unavailable preserves the complete saved identity and long subjects", () => localized("en", () => {
+    const snapshot = { ...primaryMessageReference(header)!, subject: "Long ".repeat(100), recipients: ["Bob", "Carol"] };
     const display = formatPrimaryMessage(snapshot, true);
-    assert.ok(display.text.startsWith("Message unavailable:")); assert.ok(display.text.includes(snapshot.subject));
-    assert.ok(display.title.includes(header.author)); assert.ok(display.title.includes("Bob"));
+    assert.equal(display.subject, snapshot.subject);
+    assert.ok(display.metadata.startsWith("Message unavailable · Alice"));
+    assert.ok(display.title.includes(snapshot.subject));
+    assert.ok(display.title.includes("Alice <alice@test> → Bob, Carol"));
     assert.ok(display.title.includes(formatDateTime(snapshot.date!)));
   }));
 });
@@ -131,15 +156,20 @@ describe("primary context persistence and Portable Data v1", () => {
   });
   it("UI style uses local icon, truncation and existing theme/focus states", () => {
     const css = readFileSync("src/ui/notes.css", "utf8");
-    assert.match(css, /\.tn-primary-message__identity\s*\{[^}]*text-overflow:\s*ellipsis/);
+    assert.match(css, /\.tn-primary-message__link\s*\{[^}]*text-overflow:\s*ellipsis/);
     assert.match(css, /\.tn-primary-message__unlink:active\s*\{[^}]*var\(--tn-selected\)/);
-    assert.match(css, /\.tn-icon-btn:focus-visible/); assert.match(css, /\.tn-icon-btn:hover/);
+    assert.match(css, /\.tn-primary-message__unlink:focus-visible/); assert.match(css, /\.tn-primary-message__unlink:hover/);
     assert.match(css, /\.tn-primary-message__link[^}]*font-size:\s*14px/);
     assert.match(css, /@media[^}]*\.tn-primary-message[^}]*max-width:\s*100%/);
-    assert.ok(readFileSync("assets/icons/close.svg", "utf8").includes("<svg"));
+    assert.ok(readFileSync("assets/icons/mail.svg", "utf8").includes("<svg"));
+    assert.match(css, /\.tn-icon--mail[^}]*assets\/icons\/mail\.svg/);
+    assert.match(css, /\.tn-primary-message__metadata[^}]*text-overflow:\s*ellipsis/);
+    assert.match(css, /grid-template-columns:\s*16px minmax\(0, 1fr\) auto/);
+    assert.match(css, /@media[^}]*\.tn-primary-message[^}]*flex-basis:\s*100%/);
     for (const locale of ["en", "ru"]) {
       const json = JSON.parse(readFileSync(`_locales/${locale}/messages.json`, "utf8"));
       assert.equal(json.messageUnlink.message, locale === "en" ? "Unlink message" : "Отвязать письмо");
+      assert.equal(json.messageUnlinkShort.message, locale === "en" ? "Unlink" : "Отвязать");
     }
   });
 });

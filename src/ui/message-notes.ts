@@ -19,12 +19,14 @@ export function bindMessageNotes(options: {
   const messages = api.messages, display = api.messageDisplay, document = textarea.ownerDocument;
   const header = document.createElement("div"); header.className = "tn-primary-message"; header.hidden = true;
   const link = document.createElement("button"); link.type = "button"; link.className = "tn-primary-message__link";
-  const badge = document.createElement("span"); badge.className = "tn-primary-message__kind"; badge.setAttribute("aria-hidden", "true");
-  const identity = document.createElement("span"); identity.className = "tn-primary-message__identity"; link.append(badge, identity);
-  const unlink = document.createElement("button"); unlink.type = "button"; unlink.className = "tn-icon-btn tn-primary-message__unlink";
-  const unlinkIcon = document.createElement("span"); unlinkIcon.className = "tn-icon tn-icon--close"; unlinkIcon.setAttribute("aria-hidden", "true"); unlink.append(unlinkIcon);
+  const icon = document.createElement("span"); icon.className = "tn-icon tn-icon--mail tn-primary-message__icon"; icon.setAttribute("aria-hidden", "true");
+  const content = document.createElement("div"); content.className = "tn-primary-message__content";
+  const metadata = document.createElement("span"); metadata.className = "tn-primary-message__metadata";
+  content.append(link, metadata);
+  const unlink = document.createElement("button"); unlink.type = "button"; unlink.className = "tn-primary-message__unlink";
+  unlink.textContent = t("messageUnlinkShort");
   unlink.title = t("messageUnlink"); unlink.setAttribute("aria-label", t("messageUnlink"));
-  header.append(link, unlink);
+  header.append(icon, content, unlink);
   document.getElementById("tn-md-mode")?.before(header);
   let renderedKey = "", relationSignature = "", sequence = 0;
   const navigate = async (locator: MessageLocator): Promise<void> => {
@@ -53,8 +55,8 @@ export function bindMessageNotes(options: {
     if (!reference) return;
     const present = (snapshot: MessageReference, unavailable = false): void => {
       const formatted = formatPrimaryMessage(snapshot, unavailable);
-      badge.textContent = formatted.badge; badge.title = formatted.kind;
-      identity.textContent = formatted.text; link.title = formatted.title; link.setAttribute("aria-label", formatted.title);
+      link.textContent = formatted.subject; link.title = formatted.title; link.setAttribute("aria-label", formatted.title);
+      metadata.textContent = formatted.metadata; metadata.title = formatted.metadata; metadata.hidden = !formatted.metadata;
       header.classList.toggle("is-unavailable", unavailable);
     };
     present(reference);

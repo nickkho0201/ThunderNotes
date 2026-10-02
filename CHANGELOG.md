@@ -15,9 +15,10 @@ start under Unreleased. Release dates below are GitHub publication dates in UTC.
 
 ### Changed
 
-- Primary message header uses a readable context link, compact kind badge and
-  secondary local-icon unlink control. Saved author/To/date context remains visible
-  when a message is unavailable; older subject-only relations enrich safely when
+- Primary message header uses a local envelope icon, prominent subject link,
+  secondary participant/date context and an explicit localized Unlink control.
+  Unknown direction uses neutral author → recipients presentation. Saved context
+  remains visible when a message is unavailable; older subject-only relations enrich safely when
   resolvable. Kind stays unknown where supported metadata cannot establish it.
 
 Message linking is a development candidate pending manual Thunderbird QA.

@@ -597,5 +597,11 @@
   },
   "messageTo": {
     "message": "To: $1"
+  },
+  "messageUnlinkShort": {
+    "message": "Unlink"
+  },
+  "messageUnavailableLabel": {
+    "message": "Message unavailable"
   }
 }
