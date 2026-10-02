@@ -1,5 +1,5 @@
 import type { MessagesApi, MessageDisplayApi, MessageHeader } from "../api/browser";
-import { matchesMessageSearch } from "./search";
+import { matchesNormalizedMessageSearch, normalizeMessageSearch } from "./search";
 import { isMessageLocator, messageReference, type MessageLocator } from "./locator";
 
 /** Resolve all exact matches, fail closed on ambiguous copies. Never read MIME. */
@@ -25,32 +25,43 @@ export async function openMessage(messages: MessagesApi, display: MessageDisplay
 }
 
 export interface MessageSearchResult { messages: MessageHeader[]; limited: boolean }
+export interface MessageSearchPage { messages: MessageHeader[]; full: boolean }
+export interface MessageSearchReuse {
+  page(from: number, to: number): Promise<MessageSearchPage>;
+  matches(message: MessageHeader, normalizedQuery: string): boolean;
+}
 /** Global metadata queries have no date sort. Bisect full time windows newest-first,
  * then merge/sort locally. Bound API work; explicitly expose truncation to the UI. */
-export async function searchMessages(api: MessagesApi, query: string, signal?: AbortSignal, now = Date.now()): Promise<MessageSearchResult> {
+export async function searchMessages(api: MessagesApi, query: string, signal?: AbortSignal, now = Date.now(), reuse?: MessageSearchReuse): Promise<MessageSearchResult> {
   const results = new Map<number, MessageHeader>();
+  const needle = normalizeMessageSearch(query);
+  const matches = (message: MessageHeader) => reuse ? reuse.matches(message, needle) : matchesNormalizedMessageSearch(message, needle);
+  const loadPage = async (from: number, to: number): Promise<MessageSearchPage> => {
+    if (reuse) return reuse.page(from, to);
+    const page = await api.query({ fromDate: new Date(from), toDate: new Date(to), messagesPerPage: 100 });
+    try { return { messages: page.messages, full: Boolean(page.id) }; }
+    finally { if (page.id) await api.abortList(page.id).catch(() => {}); }
+  };
   let calls = 0, limited = false;
   const visit = async (from: number, to: number): Promise<void> => {
     if (signal?.aborted) throw new DOMException("Cancelled", "AbortError");
     if (calls >= 64) { limited = true; return; }
     const found = new Map<number, MessageHeader>();
     calls++;
-    const page = await api.query({ fromDate: new Date(from), toDate: new Date(to), messagesPerPage: 100 });
-    const full = Boolean(page.id);
-    try {
-      if (signal?.aborted) throw new DOMException("Cancelled", "AbortError");
-      for (const message of page.messages) if (messageReference(message)) found.set(message.id, message);
-    } finally { if (page.id) await api.abortList(page.id).catch(() => {}); }
+    const page = await loadPage(from, to);
+    const full = page.full;
+    if (signal?.aborted) throw new DOMException("Cancelled", "AbortError");
+    for (const message of page.messages) if (messageReference(message)) found.set(message.id, message);
     if (full && to - from > 1) {
       const middle = Math.floor((from + to) / 2);
       await visit(middle, to);
       if (results.size < 50 && !limited) await visit(from, middle);
       // Retain matching sampled candidates when the work budget prevents a
       // complete traversal; the UI explicitly reports this incomplete search.
-      if (limited) for (const message of found.values()) if (matchesMessageSearch(message, query)) results.set(message.id, message);
+      if (limited) for (const message of found.values()) if (matches(message)) results.set(message.id, message);
     } else {
       limited ||= full;
-      for (const message of found.values()) if (matchesMessageSearch(message, query)) results.set(message.id, message);
+      for (const message of found.values()) if (matches(message)) results.set(message.id, message);
     }
   };
   // Start with the recent month; progressively expand backwards without reading

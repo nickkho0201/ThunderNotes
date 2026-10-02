@@ -361,7 +361,7 @@ account enumeration or online queries are used for search.
 `messages.query` has no global date-sort parameter: bounded recent time windows
 are bisected newest-first when a page fills, then collected headers are sorted
 descending locally and deduplicated by current message ID. Results are limited
-to 50 and 64 queries of at most 100 headers each, with full lists
+to 50 and 64 logical date-window visits of at most 100 headers each, with full lists
 aborted rather than exhaustively loaded. A visible limited-results status covers
 overflow, including many identical-date messages. The initial window includes up
 to a year of future-dated mail, then expands backwards to the Unix epoch. Mail
@@ -371,6 +371,31 @@ remain undiscovered within this work budget; this is not a complete arbitrary
 substring search over every mailbox. Query changes cancel local traversal and
 ignore stale results; an outstanding platform call can only have its list aborted
 once it returns a list ID.
+
+Each opening of the picker creates a short-lived `MessageSearchSession`, anchored
+to its opening time so equivalent windows have stable cache keys. It caches up to
+64 metadata pages (including in-flight promises) and a 6,400-header candidate
+corpus, using LRU eviction. Identical headers are interned by runtime ID plus
+metadata signature; searchable fields are normalized lazily once per captured
+header version. Page references and corpus references each have a 6,400-header
+upper bound (up to 12,800 retained header objects in the worst eviction case).
+The cache contains no message bodies and is separate from hover preview.
+
+On input, cached substring matches can be displayed immediately, with the existing
+loading status. The unchanged 200 ms debounce starts deep traversal, which replays
+the same newer-first windows, 64-visit budget, overlap deduplication, truncation
+fallback and final sorting. Cache hits still spend logical visits: they do not
+change coverage. Cached results are provisional, not evidence that the mailbox
+has been searched exhaustively. The final reference-equivalent result replaces
+them; unchanged rows retain their DOM nodes and keyboard selection. No native
+list continuation or speculative parallel traversal is added.
+
+Changing query cancels that query's traversal/UI result but can reuse an existing
+metadata request. The native list is still finalized when the request completes;
+failed requests are evicted for retry. Closing the picker clears both metadata
+caches, rejects/ignores late responses and prevents cache repopulation. Reopening
+queries fresh mailbox state. This is a session snapshot, not a live mailbox index,
+background service, persisted preference or Portable Data payload.
 
 `messagesRead` is the only new permission. The hand-written platform surface
 exposes metadata queries, message display and the narrowly scoped inline-text API

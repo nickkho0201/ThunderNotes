@@ -11,6 +11,12 @@ export function normalizeMessageSearch(value: string): string {
 }
 export function matchesMessageSearch(message: MessageHeader, query: string): boolean {
   const needle = normalizeMessageSearch(query);
+  return matchesNormalizedMessageSearch(message, needle);
+}
+export function normalizedMessageFields(message: MessageHeader): string[] {
+  return [message.subject, message.author, ...messageRecipients(message)].map(normalizeMessageSearch);
+}
+export function matchesNormalizedMessageSearch(message: MessageHeader, needle: string): boolean {
   return !needle || [message.subject, message.author, ...messageRecipients(message)]
     .some(value => normalizeMessageSearch(value).includes(needle));
 }

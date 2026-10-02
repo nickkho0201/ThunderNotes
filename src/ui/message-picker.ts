@@ -1,7 +1,7 @@
 import type { MessagesApi, MessageHeader } from "../api/browser";
 import { messageReference, type MessageReference } from "../messages/locator";
 import { formatPrimaryMessage } from "../messages/presentation";
-import { searchMessages } from "../messages/platform";
+import { MessageSearchSession } from "../messages/search-session";
 import { readMessageExcerpt } from "../messages/excerpt";
 import { messageRecipients } from "../messages/search";
 import { t } from "../i18n";
@@ -21,6 +21,7 @@ export class MessagePicker {
   private results: MessageHeader[] = [];
   private highlighted = 0;
   private controller: AbortController | null = null;
+  private searchSession: MessageSearchSession | null = null;
   private finish: ((result: MessageReference | null) => void) | null = null;
   private debounce: ReturnType<typeof setTimeout> | null = null;
   private hoverTimer: ReturnType<typeof setTimeout> | null = null;
@@ -61,8 +62,9 @@ export class MessagePicker {
     this.preview.append(this.previewSubject, this.previewIdentity, this.previewBody);
     this.dialog.append(header, body, footer, this.preview); document.body.append(this.dialog);
     this.search.addEventListener("input", () => {
-      this.sequence++; this.controller?.abort(); this.clearPreview(); this.results = []; this.list.replaceChildren(); this.highlighted = 0;
-      this.search.removeAttribute("aria-activedescendant"); this.list.setAttribute("aria-busy", "true"); this.status.textContent = t("messageLoading");
+      this.sequence++; this.controller?.abort(); this.clearPreview();
+      this.showResults(this.searchSession?.cached(this.search.value) ?? []);
+      this.list.setAttribute("aria-busy", "true"); this.status.textContent = t("messageLoading");
       if (this.debounce) clearTimeout(this.debounce);
       this.debounce = setTimeout(() => { this.debounce = null; if (this.finish) void this.load(); }, 200);
     });
@@ -83,6 +85,7 @@ export class MessagePicker {
   }
   open(): Promise<MessageReference | null> {
     if (this.finish) this.close(null);
+    this.searchSession = new MessageSearchSession(this.api);
     this.opener = this.dialog.ownerDocument.activeElement as HTMLElement | null;
     this.search.value = ""; this.results = []; this.highlighted = 0; this.list.replaceChildren();
     this.search.removeAttribute("aria-activedescendant"); this.search.setAttribute("aria-expanded", "true");
@@ -95,6 +98,7 @@ export class MessagePicker {
   }
   private close(result: MessageReference | null): void {
     this.sequence++; this.controller?.abort(); this.clearPreview(); this.cache.clear();
+    this.searchSession?.dispose(); this.searchSession = null;
     if (this.debounce) clearTimeout(this.debounce); this.debounce = null;
     const finish = this.finish; this.finish = null; this.search.setAttribute("aria-expanded", "false");
     if (this.dialog.open) this.dialog.close();
@@ -107,13 +111,20 @@ export class MessagePicker {
     this.controller?.abort(); this.controller = new AbortController(); const sequence = ++this.sequence;
     this.list.setAttribute("aria-busy", "true"); this.status.textContent = t("messageLoading");
     try {
-      const result = await searchMessages(this.api, this.search.value, this.controller.signal);
+      const result = await this.searchSession!.search(this.search.value, this.controller.signal);
       if (sequence !== this.sequence || !this.finish) return;
-      this.results = result.messages; this.highlighted = 0; this.render();
+      this.showResults(result.messages);
       this.status.textContent = result.limited ? t("messageSearchLimited") : this.results.length ? "" : t("messageNoResults");
     } catch {
       if (sequence === this.sequence && this.finish) this.status.textContent = t("messageSearchError");
     } finally { if (sequence === this.sequence) this.list.setAttribute("aria-busy", "false"); }
+  }
+  private showResults(messages: MessageHeader[]): void {
+    if (messages.length === this.results.length && messages.every((header, index) => header === this.results[index])) return;
+    const selectedId = this.results[this.highlighted]?.id;
+    this.results = messages;
+    this.highlighted = Math.max(0, messages.findIndex(header => header.id === selectedId));
+    this.render();
   }
   private identity(message: MessageHeader) {
     return formatPrimaryMessage({ ...messageReference(message)!, author: message.author, recipients: messageRecipients(message), date: message.date.getTime() });

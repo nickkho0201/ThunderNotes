@@ -15,6 +15,8 @@ start under Unreleased. Release dates below are GitHub publication dates in UTC.
 
 ### Changed
 
+- Improved `/mail` search responsiveness by reusing picker-session metadata and
+  showing cached matches immediately while preserving search coverage and matching.
 - Refined the `/mail` dialog with normalized subject, sender, recipient and partial
   email search, and a lightweight text preview after deliberate mouse hover.
   Preview excerpts are temporary and are not stored or exported.

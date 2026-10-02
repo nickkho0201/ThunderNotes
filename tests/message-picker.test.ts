@@ -97,14 +97,56 @@ describe("hover-only ephemeral message picker preview", () => {
 });
 
 describe("picker search and visual interaction contracts", () => {
+  it("shows cached matches before debounce/deep completion and merges older matches", async t => {
+    t.mock.timers.enable({ apis: ["setTimeout"] }); const f = fixture("en", 50); f.headers[0]!.subject = "Target";
+    const oldHeader = { ...f.headers[0]!, id: 99, headerMessageId: "old@test", date: new Date("2001-01-01") };
+    const normal = f.api.query; let release!: () => void;
+    f.api.query = async q => {
+      if (q.fromDate && q.toDate && oldHeader.date >= q.fromDate && oldHeader.date <= q.toDate) {
+        await new Promise<void>(resolve => { release = resolve; }); return { messages: [oldHeader] };
+      }
+      return normal(q);
+    };
+    const result = f.picker.open(); await settle(); const baseline = f.queries();
+    f.picker.search.value = "Target"; f.event(f.picker.search, "input");
+    assert.equal(f.picker.list.children.length, 1); assert.ok(f.row().textContent?.includes("Target")); assert.equal(f.queries(), baseline);
+    t.mock.timers.tick(200); await settle(); assert.ok(release); assert.equal(f.picker.list.children.length, 1);
+    release(); await settle(); assert.equal(f.picker.list.children.length, 2); assert.equal(f.picker.list.getAttribute("aria-busy"), "false");
+    f.key("Escape"); await result;
+  });
+  it("cached results never let an obsolete deep query overwrite a new one", async t => {
+    t.mock.timers.enable({ apis: ["setTimeout"] }); const f = fixture("en", 50); const normal = f.api.query;
+    const oldHeader = { ...f.headers[0]!, id: 99, headerMessageId: "old@test", subject: "Old target", date: new Date("2001-01-01") };
+    let release!: () => void;
+    f.api.query = async q => {
+      if (q.fromDate && q.toDate && oldHeader.date >= q.fromDate && oldHeader.date <= q.toDate) {
+        await new Promise<void>(resolve => { release = resolve; }); return { messages: [oldHeader] };
+      }
+      return normal(q);
+    };
+    const result = f.picker.open(); await settle(); f.picker.search.value = "Old target"; f.event(f.picker.search, "input");
+    t.mock.timers.tick(200); await settle(); assert.ok(release);
+    f.picker.search.value = "Subject 2"; f.event(f.picker.search, "input"); assert.ok(f.row().textContent?.includes("Subject 2"));
+    t.mock.timers.tick(200); await settle(); release(); await settle();
+    assert.ok([...f.picker.list.children].every(row => row.textContent?.includes("Subject 2"))); f.key("Escape"); await result;
+  });
+  it("retains unchanged rows while searching and observes fresh metadata on reopening", async t => {
+    t.mock.timers.enable({ apis: ["setTimeout"] }); const f = fixture(); let result = f.picker.open(); await settle();
+    const row = f.row(); const baseline = f.queries(); f.picker.search.value = "Author"; f.event(f.picker.search, "input");
+    assert.equal(f.row(), row); t.mock.timers.tick(200); await settle(); assert.equal(f.row(), row); assert.equal(f.queries(), baseline);
+    f.key("Escape"); await result; f.headers[0]!.subject = "Fresh mailbox";
+    result = f.picker.open(); await settle(); assert.ok(f.row().textContent?.includes("Fresh mailbox")); assert.ok(f.queries() > baseline);
+    f.key("Escape"); await result;
+  });
   it("ignores stale search results after rapid query changes", async t => {
     t.mock.timers.enable({ apis: ["setTimeout"] }); const f = fixture(); const normal = f.api.query;
-    let finishOld!: (value: { messages: MessageHeader[]; id: string }) => void; let first = true; const aborted: string[] = [];
-    f.api.query = q => { if (first) { first = false; return new Promise(resolve => { finishOld = resolve; }); } return normal(q); };
+    let finishOld!: (value: { messages: MessageHeader[]; id: string }) => void; let first = true; let starts = 0; const aborted: string[] = [];
+    f.api.query = q => { starts++; if (first) { first = false; return new Promise(resolve => { finishOld = resolve; }); } return normal(q); };
     f.api.abortList = async id => { aborted.push(id); };
     const result = f.picker.open(); f.picker.search.value = "Subject 2"; f.event(f.picker.search, "input");
-    t.mock.timers.tick(200); await settle(); assert.equal(f.picker.list.children.length, 1);
-    finishOld({ id: "old-list", messages: [f.headers[0]!] }); await settle();
+    t.mock.timers.tick(200); await settle(); assert.equal(starts, 1); // Shared metadata request, not a duplicate search.
+    finishOld({ id: "old-list", messages: f.headers }); await settle();
+    assert.equal(f.picker.list.children.length, 1);
     assert.ok(f.row().textContent?.includes("Subject 2")); assert.deepEqual(aborted, ["old-list"]); f.key("Escape"); await result;
   });
   it("shows localized empty/error states while retaining Cancel", async t => {
