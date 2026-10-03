@@ -57,6 +57,8 @@ Data encoding and import planning are separate from file delivery and UI.
 | `revision` | Starts at 1; increments once per real content/format/colour/metadata change. |
 | `schemaVersion` | Optional in the local TypeScript shape for historical records; current schema is 1. |
 | `meta` | Optional extension bag; Portable Data requires JSON-compatible values. |
+| `favorite` / `pinned` | Independent booleans; missing historical values normalize to `false`. |
+| `reminder` | Active one-shot `{ at }` state, or `null`. Persisted note data is authoritative; runtime alarms are derived and completion clears the active state. |
 
 There is no stored title. The list derives a title from the first non-empty
 readable line and an excerpt from subsequent text, with truncation and simple
@@ -179,6 +181,9 @@ Mixed bullet/ordered trees can include the intermediate bullet counter in the
 hierarchical label; the saved source is unaffected.
 
 ## Portable Data
+
+Portable Data v1 accepts additive optional `favorite`, `pinned`, and `reminder` fields. Older
+exports remain valid; a new export writes explicit defaults and reminder state.
 
 Portable Data v1 is a UTF-8 JSON envelope with `format` equal to
 `thundernotes-portable-data`, `formatVersion: 1`, `exportedAt`, `appVersion` and

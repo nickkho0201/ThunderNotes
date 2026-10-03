@@ -612,5 +612,23 @@
   },
   "messagePreviewUnavailable": {
     "message": "Preview unavailable"
-  }
+  },
+  "favoriteFilter": { "message": "Favorites" },
+  "favoriteAdd": { "message": "Add to favorites" },
+  "favoriteRemove": { "message": "Remove from favorites" },
+  "pinAdd": { "message": "Pin note" },
+  "pinRemove": { "message": "Unpin note" },
+  "reminderButton": { "message": "Reminder" },
+  "reminderTitle": { "message": "Reminder" },
+  "reminderDate": { "message": "Date" },
+  "reminderTime": { "message": "Time" },
+  "reminderToday": { "message": "Today" },
+  "reminderTomorrow": { "message": "Tomorrow" },
+  "reminderSet": { "message": "Set" },
+  "reminderRemove": { "message": "Remove" },
+  "reminderPermissionExplanation": { "message": "ThunderNotes needs notification permission to alert you at the selected time." },
+  "reminderPermissionDenied": { "message": "Notification permission was not granted. The reminder was not set." },
+  "reminderSetError": { "message": "Could not set the reminder: $1" },
+  "reminderSetSuccessTitle": { "message": "Reminder set" },
+  "reminderFutureRequired": { "message": "Choose a time in the future." }
 }

@@ -35,6 +35,8 @@ export interface NotesListViewOptions {
   onSelect: (id: string) => void;
   /** Called when the user activates the selected row (Enter / double click). */
   onActivate?: (id: string) => void;
+  onToggleFavorite?: (id: string) => void;
+  onTogglePinned?: (id: string) => void;
 }
 
 interface RowNodes {
@@ -44,6 +46,9 @@ interface RowNodes {
   date: HTMLElement;
   dateLabel: HTMLElement;
   format: HTMLElement;
+  favorite: HTMLButtonElement;
+  pin: HTMLButtonElement;
+  reminder: HTMLElement;
   /** Cached values, so unchanged rows are not rewritten. */
   c: {
     color: string;
@@ -53,6 +58,9 @@ interface RowNodes {
     date: string;
     dateLabel: string;
     format: string;
+    favorite: boolean | null;
+    pinned: boolean | null;
+    reminder: string;
   };
 }
 
@@ -85,8 +93,25 @@ function createRow(): RowNodes {
   const date = document.createElement("span");
   date.className = "tn-item__date";
 
-  meta.append(format, dateLabel, date);
-  item.append(strip, title, excerpt, meta);
+  const reminder = document.createElement("span");
+  reminder.className = "tn-item__reminder";
+  const actions = document.createElement("span");
+  actions.className = "tn-item__actions";
+  const pin = document.createElement("button");
+  pin.type = "button"; pin.dataset.noteAction = "pin"; pin.className = "tn-item__action tn-item__action--pin";
+  const pinIcon = document.createElement("span");
+  pinIcon.className = "tn-item__action-icon";
+  pinIcon.setAttribute("aria-hidden", "true");
+  pin.append(pinIcon);
+  const favorite = document.createElement("button");
+  favorite.type = "button"; favorite.dataset.noteAction = "favorite"; favorite.className = "tn-item__action tn-item__action--favorite";
+  const favoriteIcon = document.createElement("span");
+  favoriteIcon.className = "tn-item__action-icon";
+  favoriteIcon.setAttribute("aria-hidden", "true");
+  favorite.append(favoriteIcon);
+  actions.append(pin, favorite);
+  meta.append(format, reminder, dateLabel, date);
+  item.append(strip, title, excerpt, meta, actions);
 
   return {
     item,
@@ -95,6 +120,9 @@ function createRow(): RowNodes {
     date,
     dateLabel,
     format,
+    favorite,
+    pin,
+    reminder,
     c: {
       color: "",
       title: "",
@@ -103,6 +131,9 @@ function createRow(): RowNodes {
       date: "",
       dateLabel: "",
       format: "",
+      favorite: null,
+      pinned: null,
+      reminder: "",
     },
   };
 }
@@ -112,6 +143,8 @@ export class NotesListView {
   private readonly empty: HTMLElement;
   private readonly onSelect: (id: string) => void;
   private readonly onActivate: ((id: string) => void) | undefined;
+  private readonly onToggleFavorite: ((id: string) => void) | undefined;
+  private readonly onTogglePinned: ((id: string) => void) | undefined;
 
   /** Items in display order (filtered + sorted). */
   private items: readonly IndexedNote[] = [];
@@ -152,6 +185,8 @@ export class NotesListView {
     this.empty = options.emptyElement;
     this.onSelect = options.onSelect;
     this.onActivate = options.onActivate;
+    this.onToggleFavorite = options.onToggleFavorite;
+    this.onTogglePinned = options.onTogglePinned;
 
     this.list.addEventListener("scroll", () => this.onScroll(), { passive: true });
     this.list.addEventListener("click", (event) => this.onClick(event));
@@ -416,6 +451,7 @@ export class NotesListView {
     const dateLabel = this.sortField === "createdAt" ? t("dateCreated") : t("dateUpdated");
     const date = formatDateTime(note[this.sortField], "short");
     const formatLabel = note.format === "markdown" ? "MD" : "";
+    const reminderLabel = note.reminder && note.reminder.firedAt === undefined ? "🔔" : "";
 
     const cache = nodes.c;
 
@@ -455,6 +491,25 @@ export class NotesListView {
       nodes.format.hidden = formatLabel.length === 0;
       cache.format = formatLabel;
     }
+    if (cache.favorite !== note.favorite) {
+      nodes.favorite.classList.toggle("is-active", note.favorite);
+      nodes.favorite.setAttribute("aria-pressed", String(note.favorite));
+      nodes.favorite.title = t(note.favorite ? "favoriteRemove" : "favoriteAdd");
+      nodes.favorite.setAttribute("aria-label", nodes.favorite.title);
+      cache.favorite = note.favorite;
+    }
+    if (cache.pinned !== note.pinned) {
+      nodes.pin.classList.toggle("is-active", note.pinned);
+      nodes.pin.setAttribute("aria-pressed", String(note.pinned));
+      nodes.pin.title = t(note.pinned ? "pinRemove" : "pinAdd");
+      nodes.pin.setAttribute("aria-label", nodes.pin.title);
+      cache.pinned = note.pinned;
+    }
+    if (cache.reminder !== reminderLabel) {
+      nodes.reminder.textContent = reminderLabel;
+      nodes.reminder.title = note.reminder ? formatDateTime(note.reminder.at) : "";
+      cache.reminder = reminderLabel;
+    }
   }
 
   // ------------------------------------------------------------------ behaviour
@@ -470,6 +525,9 @@ export class NotesListView {
   private onClick(event: MouseEvent): void {
     const id = this.idFromEvent(event);
     if (id !== null) {
+      const action = (event.target as Element | null)?.closest<HTMLElement>("[data-note-action]")?.dataset.noteAction;
+      if (action === "favorite") { event.stopPropagation(); this.onToggleFavorite?.(id); return; }
+      if (action === "pin") { event.stopPropagation(); this.onTogglePinned?.(id); return; }
       this.onSelect(id);
       this.rows.get(id)?.item.focus({ preventScroll: true });
     }

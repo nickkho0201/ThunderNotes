@@ -136,7 +136,7 @@ if (!existsSync(join(distDir, "manifest.json"))) {
   if (manifest.spacesToolbar) fail("spacesToolbar is deprecated; the spaces API must be used instead");
   const permissionErrors = permissionFailures(manifest);
   for (const message of permissionErrors) fail(message);
-  if (permissionErrors.length === 0) ok('permissions: exactly downloads and messagesRead, no optional/host permissions');
+  if (permissionErrors.length === 0) ok('permissions: alarms/downloads/messagesRead; optional notifications; no host permissions');
   if (manifest.background?.type !== "module") fail('background.type should be "module"');
   if (!manifest.background?.scripts?.length) fail("background.scripts must list the service worker");
 

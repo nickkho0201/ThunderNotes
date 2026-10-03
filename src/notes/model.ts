@@ -28,6 +28,13 @@ export type NoteColor = (typeof NOTE_COLORS)[number];
 /** How the note body is edited and rendered. Stored verbatim. */
 export type NoteFormat = "plain" | "markdown";
 
+export interface NoteReminder {
+  /** Absolute Unix timestamp in milliseconds. */
+  at: number;
+  /** Legacy completion marker accepted when reading pre-fix development data. */
+  firedAt?: number;
+}
+
 export interface Note {
   id: string;
 
@@ -35,6 +42,10 @@ export interface Note {
   format: NoteFormat;
 
   color: NoteColor | null;
+
+  favorite: boolean;
+  pinned: boolean;
+  reminder: NoteReminder | null;
 
   createdAt: number;
   updatedAt: number;
@@ -83,6 +94,18 @@ function toFiniteNumber(value: unknown, fallback: number): number {
   return typeof value === "number" && Number.isFinite(value) ? value : fallback;
 }
 
+export function normalizeReminder(value: unknown): NoteReminder | null {
+  if (value === null || typeof value !== "object" || Array.isArray(value)) return null;
+  const raw = value as Record<string, unknown>;
+  if (!Number.isSafeInteger(raw.at) || (raw.at as number) < 0) return null;
+  // Completed one-shot reminders are not active schedules. Older development
+  // builds persisted `firedAt` inside `reminder`; read that shape as completed.
+  if (Number.isSafeInteger(raw.firedAt) && (raw.firedAt as number) >= 0) {
+    return null;
+  }
+  return { at: raw.at as number };
+}
+
 /**
  * Validate/repair a historical or partially corrupt local storage record.
  * Never throws: unreadable input yields `null` so callers can skip the record
@@ -110,6 +133,9 @@ export function normalizeNote(input: unknown): Note | null {
     content,
     format: normalizeFormat(raw.format),
     color: normalizeColor(raw.color),
+    favorite: raw.favorite === true,
+    pinned: raw.pinned === true,
+    reminder: normalizeReminder(raw.reminder),
     createdAt,
     updatedAt,
     revision,
@@ -143,6 +169,9 @@ export function createNote(overrides: Partial<Note> = {}): Note {
     content: "",
     format: "plain",
     color: null,
+    favorite: false,
+    pinned: false,
+    reminder: null,
     createdAt: now,
     updatedAt: now,
     revision: 1,
@@ -160,15 +189,21 @@ export function createNote(overrides: Partial<Note> = {}): Note {
  */
 export function applyNoteChange(
   note: Note,
-  change: Partial<Pick<Note, "content" | "format" | "color" | "meta">>,
+  change: Partial<Pick<Note, "content" | "format" | "color" | "favorite" | "pinned" | "reminder" | "meta">>,
   now: number = Date.now()
 ): Note {
   const content = change.content ?? note.content;
   const format = change.format ?? note.format;
   const color = change.color === undefined ? note.color : change.color;
+  const favorite = change.favorite ?? note.favorite;
+  const pinned = change.pinned ?? note.pinned;
+  const reminder = change.reminder === undefined ? note.reminder : change.reminder;
   const meta = change.meta === undefined ? note.meta : change.meta;
 
-  if (content === note.content && format === note.format && color === note.color && meta === note.meta) {
+  if (
+    content === note.content && format === note.format && color === note.color &&
+    favorite === note.favorite && pinned === note.pinned && reminder === note.reminder && meta === note.meta
+  ) {
     return note;
   }
 
@@ -177,6 +212,9 @@ export function applyNoteChange(
     content,
     format,
     color,
+    favorite,
+    pinned,
+    reminder,
     ...(meta === undefined ? {} : { meta }),
     updatedAt: now,
     revision: note.revision + 1,

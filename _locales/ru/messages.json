@@ -496,5 +496,23 @@
   },
   "messagePreviewUnavailable": {
     "message": "Предпросмотр недоступен"
-  }
+  },
+  "favoriteFilter": { "message": "Избранное" },
+  "favoriteAdd": { "message": "Добавить в избранное" },
+  "favoriteRemove": { "message": "Убрать из избранного" },
+  "pinAdd": { "message": "Закрепить заметку" },
+  "pinRemove": { "message": "Открепить заметку" },
+  "reminderButton": { "message": "Напоминание" },
+  "reminderTitle": { "message": "Напоминание" },
+  "reminderDate": { "message": "Дата" },
+  "reminderTime": { "message": "Время" },
+  "reminderToday": { "message": "Сегодня" },
+  "reminderTomorrow": { "message": "Завтра" },
+  "reminderSet": { "message": "Установить" },
+  "reminderRemove": { "message": "Удалить" },
+  "reminderPermissionExplanation": { "message": "ThunderNotes требуется разрешение на уведомления, чтобы напомнить вам в выбранное время." },
+  "reminderPermissionDenied": { "message": "Разрешение на уведомления не предоставлено. Напоминание не установлено." },
+  "reminderSetError": { "message": "Не удалось установить напоминание: $1" },
+  "reminderSetSuccessTitle": { "message": "Напоминание установлено" },
+  "reminderFutureRequired": { "message": "Выберите время в будущем." }
 }

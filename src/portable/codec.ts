@@ -33,6 +33,7 @@ const NOTE_KEYS = [
   "revision",
   "schemaVersion",
 ];
+const NOTE_OPTIONAL_KEYS = ["meta", "favorite", "pinned", "reminder"];
 
 function fail(
   code: PortableDataErrorCode,
@@ -202,6 +203,10 @@ export function toPortableNote(note: Note): PortableNoteV1 {
     updatedAt: note.updatedAt,
     revision: note.revision,
     schemaVersion: CURRENT_SCHEMA_VERSION,
+    favorite: note.favorite,
+    pinned: note.pinned,
+    reminder: note.reminder === null || note.reminder.firedAt !== undefined
+      ? null : { at: note.reminder.at },
   };
   if (note.meta !== undefined) portable.meta = copyMeta(note.meta, "note.meta");
   return portable;
@@ -210,7 +215,7 @@ export function toPortableNote(note: Note): PortableNoteV1 {
 function decodePortableNote(value: unknown, index: number): PortableNoteV1 {
   const path = `portable.notes[${index}]`;
   assertRecord(value, path);
-  assertExactKeys(value, NOTE_KEYS, ["meta"], path);
+  assertExactKeys(value, NOTE_KEYS, NOTE_OPTIONAL_KEYS, path);
   assertNonEmptyString(value.id, `${path}.id`);
   assertString(value.content, `${path}.content`);
   assertFormat(value.format, `${path}.format`);
@@ -226,6 +231,18 @@ function decodePortableNote(value: unknown, index: number): PortableNoteV1 {
       { actual: value.schemaVersion, supported: CURRENT_SCHEMA_VERSION },
     );
   }
+  if (value.favorite !== undefined && typeof value.favorite !== "boolean") {
+    fail("invalid-value", `${path}.favorite must be a boolean.`, { field: `${path}.favorite` });
+  }
+  if (value.pinned !== undefined && typeof value.pinned !== "boolean") {
+    fail("invalid-value", `${path}.pinned must be a boolean.`, { field: `${path}.pinned` });
+  }
+  if (value.reminder !== undefined && value.reminder !== null) {
+    assertRecord(value.reminder, `${path}.reminder`);
+    assertExactKeys(value.reminder, ["at"], ["firedAt"], `${path}.reminder`);
+    assertSafeInteger(value.reminder.at, `${path}.reminder.at`);
+    if (value.reminder.firedAt !== undefined) assertSafeInteger(value.reminder.firedAt, `${path}.reminder.firedAt`);
+  }
 
   const note: PortableNoteV1 = {
     id: value.id,
@@ -236,6 +253,12 @@ function decodePortableNote(value: unknown, index: number): PortableNoteV1 {
     updatedAt: value.updatedAt,
     revision: value.revision,
     schemaVersion: value.schemaVersion,
+    favorite: value.favorite === true,
+    pinned: value.pinned === true,
+    reminder: value.reminder === null || value.reminder === undefined ? null : {
+      at: value.reminder.at as number,
+      ...(value.reminder.firedAt === undefined ? {} : { firedAt: value.reminder.firedAt as number }),
+    },
   };
   if (Object.prototype.hasOwnProperty.call(value, "meta")) {
     note.meta = copyMeta(value.meta, `${path}.meta`);
@@ -362,6 +385,10 @@ export function portableNoteToNote(note: PortableNoteV1): Note {
     updatedAt: note.updatedAt,
     revision: note.revision,
     schemaVersion: note.schemaVersion,
+    favorite: note.favorite === true,
+    pinned: note.pinned === true,
+    reminder: note.reminder === null || note.reminder === undefined || note.reminder.firedAt !== undefined
+      ? null : { at: note.reminder.at },
   };
   if (note.meta !== undefined) result.meta = copyMeta(note.meta, "note.meta");
   return result;

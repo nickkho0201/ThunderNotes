@@ -1,4 +1,4 @@
-import type { Note, NoteColor, NoteFormat } from "../notes/model";
+import type { Note, NoteColor, NoteFormat, NoteReminder } from "../notes/model";
 
 export const PORTABLE_DATA_FORMAT = "thundernotes-portable-data" as const;
 export const PORTABLE_DATA_VERSION = 1 as const;
@@ -21,6 +21,9 @@ export interface PortableNoteV1 {
   updatedAt: number;
   revision: number;
   schemaVersion: number;
+  favorite?: boolean;
+  pinned?: boolean;
+  reminder?: NoteReminder | null;
   meta?: JsonObject;
 }
 

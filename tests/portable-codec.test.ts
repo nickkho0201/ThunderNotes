@@ -53,6 +53,9 @@ describe("portable codec: trusted canonical export", () => {
       updatedAt: 20,
       revision: 7,
       schemaVersion: CURRENT_SCHEMA_VERSION,
+      favorite: false,
+      pinned: false,
+      reminder: null,
       meta: { nested: { enabled: true, list: [1, null, "x"] } },
     });
     assert.notEqual(portable.meta, local.meta);

@@ -26,8 +26,9 @@ This source tree prepares **0.3.0**. Published builds are listed in GitHub Relea
 - Created-date range filter with a calendar and month/year navigation;
   inclusive local dates, reset and no persistence between sessions.
 - Delete confirmation, also available through Delete when the note list has focus.
-- Portable Data v1 JSON backup, Merge import and Restore with a safety backup.
-  Export opens the system Save As dialog.
+- Portable Data v1 JSON backup, Merge import and Restore with a safety backup;
+  export opens the system Save As dialog.
+- Favorites, pinned-first ordering, and local one-shot reminders with system notifications.
 - Native message action to create/open a primary note, with a confirmed unlink
   control in the note header. Markdown `/mail` inserts independent message links
   through a searchable picker with a lightweight hover text preview.
@@ -37,8 +38,10 @@ This source tree prepares **0.3.0**. Published builds are listed in GitHub Relea
 
 Notes are stored locally in the extension's IndexedDB database. ThunderNotes
 does not sync notes over the network, collect telemetry or load remote assets.
-The permissions are `downloads` for explicit backup export and `messagesRead`
-for local message metadata search, identification and navigation. ThunderNotes
+The required permissions are `alarms` for local reminder scheduling, `downloads`
+for explicit backup export and `messagesRead` for local message metadata search,
+identification and navigation. The optional `notifications` permission is requested
+only from the explicit Set reminder action. ThunderNotes
 does not read attachments. The `/mail` picker can show a small text excerpt after
 deliberate hover; excerpts are temporary and are not saved in notes or backups.
 

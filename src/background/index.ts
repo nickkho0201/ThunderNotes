@@ -13,9 +13,13 @@ import { themeModeFromMessage } from "../theme/message";
 import { applySpaceButton, ensureSpaceRegistered } from "./space";
 import type { SpaceRegistration } from "./space";
 import { loadStoredThemeMode, SpaceThemeSync, storeResolvedThemeMode } from "./theme-sync";
+import { IndexedDbNotesRepository } from "../storage/indexeddb";
+import { ReminderService } from "../reminders/service";
+import { REMINDER_NOTIFICATION_PREFIX, REMINDER_OPEN_NOTE_KEY, noteIdFromReminderId } from "../reminders/protocol";
 
 const api = getBrowser();
 if (api) startMessageActions(api);
+const reminderService = api ? new ReminderService(api, new IndexedDbNotesRepository()) : null;
 const themeSync = api
   ? new SpaceThemeSync<SpaceRegistration>({
       detect: () => detectThemeMode({ mediaQuery: null }),
@@ -28,6 +32,7 @@ const themeSync = api
 
 function boot(): void {
   void themeSync?.boot();
+  void reminderService?.reconcile().catch((error) => console.error("[ThunderNotes] reminder reconcile failed", error));
 }
 
 if (api) {
@@ -44,6 +49,19 @@ if (api) {
   // the matching `defaultIcons` without racing another update.
   api.theme?.onUpdated.addListener((updateInfo) => {
     void themeSync?.themeUpdated(updateInfo.theme);
+  });
+  api.alarms?.onAlarm.addListener((alarm) => {
+    void reminderService?.handleAlarm(alarm).catch((error) => console.error("[ThunderNotes] reminder alarm failed", error));
+  });
+  api.notifications?.onClicked.addListener((notificationId) => {
+    const noteId = noteIdFromReminderId(notificationId, REMINDER_NOTIFICATION_PREFIX);
+    if (noteId === null) return;
+    void (async () => {
+      await api.storage?.local.set({ [REMINDER_OPEN_NOTE_KEY]: noteId });
+      const registration = await ensureSpaceRegistered();
+      if (registration.space) await api.spaces?.open(registration.space.id);
+      await api.runtime.sendMessage({ type: "thundernotes:reminder-open-note", noteId });
+    })();
   });
 }
 
@@ -73,6 +91,14 @@ api?.runtime.onMessage.addListener((message, _sender, sendResponse) => {
       });
     });
     return true; // async response
+  }
+
+  if (type === "thundernotes:reminders-reconcile") {
+    void reminderService?.reconcile().then(
+      () => sendResponse({ ok: true }),
+      (error) => sendResponse({ ok: false, error: String(error) }),
+    );
+    return true;
   }
 
   const resolvedMode = themeModeFromMessage(message);

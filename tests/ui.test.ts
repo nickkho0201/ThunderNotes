@@ -183,6 +183,7 @@ const REQUIRED_IDS = [
   "tn-banner",
   "tn-banner-text",
   "tn-banner-close",
+  "tn-notifications",
   "tn-back",
   "tn-editor",
   "tn-editor-empty",
@@ -192,6 +193,7 @@ const REQUIRED_IDS = [
   "tn-md-mode",
   "tn-note-colors",
   "tn-delete",
+  "tn-reminder-form",
 ] as const;
 
 describe("ui: space page markup", () => {
@@ -546,6 +548,30 @@ describe("ui: virtualized list", () => {
     assert.deepEqual(selected, ["a"]);
   });
 
+  it("toggles favorite and pin controls without selecting the row", () => {
+    dom = installDom(loadPageHtml());
+    const selected: string[] = [], favorites: string[] = [], pins: string[] = [];
+    const view = new NotesListView({
+      listElement: dom.document.getElementById("tn-list") as HTMLElement,
+      emptyElement: dom.document.getElementById("tn-list-empty") as HTMLElement,
+      onSelect: (id) => selected.push(id), onToggleFavorite: (id) => favorites.push(id), onTogglePinned: (id) => pins.push(id),
+    });
+    const item = note({ id: "a", content: "one", favorite: true, pinned: true });
+    view.setItems([{ note: item, searchText: "one" }], "empty", 1);
+    const favorite = dom.document.querySelector('[data-note-action="favorite"]') as HTMLElement;
+    const pin = dom.document.querySelector('[data-note-action="pin"]') as HTMLElement;
+    assert.equal(favorite.textContent, "");
+    assert.equal(pin.textContent, "");
+    assert.equal(favorite.classList.contains("is-active"), true);
+    assert.equal(pin.classList.contains("is-active"), true);
+    assert.ok(favorite.querySelector(".tn-item__action-icon"));
+    assert.ok(pin.querySelector(".tn-item__action-icon"));
+    favorite.dispatchEvent(new dom.window.Event("click", { bubbles: true }));
+    pin.dispatchEvent(new dom.window.Event("click", { bubbles: true }));
+    assert.deepEqual({ selected, favorites, pins }, { selected: [], favorites: ["a"], pins: ["a"] });
+    view.dispose();
+  });
+
   it("rebuilds rows when the content changes but the window bounds do not", () => {
     // Regression: `render()` short-circuits on unchanged window bounds, so a
     // changed item set of the SAME length used to leave stale rows (and stale
@@ -685,7 +711,7 @@ describe("ui: CSS invariants", () => {
     assert.match(css, /\[hidden\][^{]*\{[^}]*display\s*:\s*none\s*!important/i);
 
     const html = readFileSync(PAGE_HTML_PATH, "utf8");
-    for (const id of ["tn-banner", "tn-editor", "tn-md-mode", "tn-search-clear"]) {
+    for (const id of ["tn-banner", "tn-notifications", "tn-editor", "tn-md-mode", "tn-search-clear"]) {
       const pattern = new RegExp(`id="${id}"[^>]*\\shidden(?:\\s|>)`);
       assert.match(html, pattern, `#${id} starts hidden and relies on the reset rule`);
     }
@@ -710,6 +736,22 @@ describe("ui: CSS invariants", () => {
     assert.match(step, /display\s*:\s*flex/);
     assert.match(step, /gap\s*:\s*5px/);
     assert.match(details, /margin\s*:\s*0/);
+  });
+
+  it("anchors a responsive notification stack above the footer", () => {
+    const root = findProjectRoot();
+    const css = readFileSync(join(root, "src", "ui", "notes.css"), "utf8");
+    const stack = /\.tn-notifications\s*\{([^}]*)\}/.exec(css)?.[1] ?? "";
+    const card = /\.tn-notification\s*\{([^}]*)\}/.exec(css)?.[1] ?? "";
+    assert.match(stack, /position\s*:\s*fixed/);
+    assert.match(stack, /inset-inline-end\s*:\s*24px/);
+    assert.match(stack, /inset-block-end\s*:\s*50px/);
+    assert.match(stack, /width\s*:\s*360px/);
+    assert.match(stack, /max-width\s*:\s*calc\(100vw\s*-\s*48px\)/);
+    assert.match(stack, /flex-direction\s*:\s*column/);
+    assert.match(card, /padding\s*:\s*15px/);
+    assert.match(css, /@media\s*\(max-width:\s*479px\)[\s\S]*?\.tn-notifications\s*\{[\s\S]*?inset-inline\s*:\s*12px/);
+    assert.match(css, /@media\s*\(prefers-reduced-motion:\s*reduce\)[\s\S]*?animation\s*:\s*none/);
   });
 });
 
