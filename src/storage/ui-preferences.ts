@@ -17,9 +17,9 @@
 
 import { getBrowser } from "../api/browser";
 import type { NoteFormat } from "../notes/model";
-import { isNoteColor, isNoteFormat } from "../notes/model";
-import type { ColorFilter, SortKey } from "../notes/query";
-import { DEFAULT_SORT_KEY, isSortKey } from "../notes/query";
+import { isNoteFormat } from "../notes/model";
+import type { ColorFilter, ColorFilterValue, SortKey } from "../notes/query";
+import { DEFAULT_SORT_KEY, isColorFilter, isColorFilterValue, isColorFilters, isSortKey } from "../notes/query";
 
 /** Storage key, namespaced so it cannot collide with anything else. */
 export const UI_PREFERENCES_KEY = "thundernotes.ui.v1";
@@ -27,6 +27,8 @@ export const UI_PREFERENCES_KEY = "thundernotes.ui.v1";
 export interface UiPreferences {
   sort: SortKey;
   colorFilter: ColorFilter;
+  colorFilters?: readonly ColorFilterValue[];
+  favoriteOnly?: boolean;
   /** The note that was selected when the user last left the space. */
   lastSelectedId: string | null;
   /** Optional format filter; `all` unless a future UI exposes it. */
@@ -36,6 +38,8 @@ export interface UiPreferences {
 export const DEFAULT_UI_PREFERENCES: UiPreferences = {
   sort: DEFAULT_SORT_KEY,
   colorFilter: "all",
+  colorFilters: [],
+  favoriteOnly: false,
   lastSelectedId: null,
   formatFilter: "all",
 };
@@ -43,10 +47,6 @@ export const DEFAULT_UI_PREFERENCES: UiPreferences = {
 export interface UiPreferencesStore {
   load(): Promise<UiPreferences>;
   save(preferences: UiPreferences): Promise<void>;
-}
-
-function isColorFilter(value: unknown): value is ColorFilter {
-  return value === "all" || value === "none" || isNoteColor(value);
 }
 
 /**
@@ -65,7 +65,12 @@ export function normalizeUiPreferences(input: unknown): UiPreferences {
 
   return {
     sort: isSortKey(raw.sort) ? raw.sort : DEFAULT_UI_PREFERENCES.sort,
-    colorFilter: isColorFilter(raw.colorFilter) ? raw.colorFilter : DEFAULT_UI_PREFERENCES.colorFilter,
+    // Accept the historical single-value preference and migrate it in memory.
+    colorFilter: isColorFilter(raw.colorFilter) ? raw.colorFilter : "all",
+    colorFilters: isColorFilters(raw.colorFilters)
+      ? [...raw.colorFilters]
+      : isColorFilterValue(raw.colorFilter) ? [raw.colorFilter] : [],
+    favoriteOnly: raw.favoriteOnly === true,
     lastSelectedId,
     formatFilter:
       raw.formatFilter === "all" || isNoteFormat(raw.formatFilter)

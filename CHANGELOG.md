@@ -6,6 +6,21 @@ UTC; an unpublished versioned entry records its release-preparation date.
 
 ## Unreleased
 
+### Added
+
+- Favorite notes with an independent favorite-only filter and multi-colour OR filtering.
+- Pinned notes, ordered before regular notes while preserving the selected sort in both groups.
+- Local one-shot reminders with persisted state, restored Thunderbird alarms, optional system
+  notifications, completion cleanup, and Portable Data import/export support.
+
+### Fixed
+
+- Notification permission is now requested directly from the Reminder Set user gesture; denial
+  and API failures remain in the dialog with localized feedback instead of silently stalling.
+- Reminder setup now gives a stacked in-app confirmation card, accepts Enter from date/time
+  fields, uses the next five-minute local time for quick dates, and removes a delivered one-shot
+  reminder from active state without repeating it on restart.
+
 ## 0.3.0 — 2026-10-02
 
 ### Added

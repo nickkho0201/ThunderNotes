@@ -26,6 +26,9 @@
         </button>
       </div>
 
+      <button id="tn-favorite-filter" class="tn-btn" type="button" aria-pressed="false"
+        data-i18n="favoriteFilter" data-i18n-title="favoriteFilter" data-i18n-aria-label="favoriteFilter"></button>
+
       <div class="tn-colors" id="tn-color-filter" role="group" data-i18n-aria-label="colorFilterLabel">
         <button class="tn-color-btn is-active" type="button" data-color="all"></button>
         <button class="tn-color-btn" type="button" data-color="none"></button>
@@ -81,13 +84,16 @@
       </button>
     </header>
 
-    <div id="tn-banner" class="tn-banner" hidden>
+    <div id="tn-banner" class="tn-banner" role="status" aria-live="polite" hidden>
       <span id="tn-banner-text"></span>
       <button id="tn-banner-close" class="tn-icon-btn" type="button"
         data-i18n-title="dismiss" data-i18n-aria-label="dismiss">
         <span class="tn-icon tn-icon--close" aria-hidden="true"></span>
       </button>
     </div>
+
+    <div id="tn-notifications" class="tn-notifications" role="status" aria-live="polite"
+      aria-relevant="additions" hidden></div>
 
     <main class="tn-main" id="tn-main" data-pane="list">
       <!-- Left: the note list -->
@@ -149,6 +155,9 @@
 
               <div class="tn-editor__spacer" aria-hidden="true"></div>
 
+              <button id="tn-reminder" class="tn-btn" type="button" aria-haspopup="dialog"
+                data-i18n="reminderButton" data-i18n-title="reminderButton"></button>
+
               <button id="tn-delete" class="tn-btn tn-btn--danger" type="button"
                 data-i18n-title="delete" data-i18n-aria-label="delete">
                 <span class="tn-icon tn-icon--delete" aria-hidden="true"></span>
@@ -164,6 +173,29 @@
         </div>
       </section>
     </main>
+
+    <dialog id="tn-reminder-dialog" class="tn-dialog tn-reminder-dialog" aria-labelledby="tn-reminder-title">
+      <form id="tn-reminder-form" method="dialog">
+        <div class="tn-dialog__header"><h2 id="tn-reminder-title" data-i18n="reminderTitle"></h2></div>
+        <div class="tn-dialog__body">
+          <p data-i18n="reminderPermissionExplanation"></p>
+          <div class="tn-reminder-fields">
+            <label><span data-i18n="reminderDate"></span><input id="tn-reminder-date" type="date" required /></label>
+            <label><span data-i18n="reminderTime"></span><input id="tn-reminder-time" type="time" required /></label>
+          </div>
+          <div class="tn-reminder-quick">
+            <button id="tn-reminder-today" class="tn-btn" type="button" data-i18n="reminderToday"></button>
+            <button id="tn-reminder-tomorrow" class="tn-btn" type="button" data-i18n="reminderTomorrow"></button>
+          </div>
+          <p id="tn-reminder-status" class="tn-data-status" aria-live="polite"></p>
+        </div>
+        <div class="tn-dialog__footer">
+          <button id="tn-reminder-remove" class="tn-btn tn-btn--danger" type="button" data-i18n="reminderRemove"></button>
+          <button class="tn-btn" value="cancel" data-i18n="cancel"></button>
+          <button id="tn-reminder-set" class="tn-btn tn-btn--primary" type="button" data-i18n="reminderSet"></button>
+        </div>
+      </form>
+    </dialog>
 
     <dialog id="tn-data-dialog" class="tn-dialog" aria-labelledby="tn-data-title">
       <div class="tn-dialog__header">

@@ -61,6 +61,7 @@ gate requires all tests to pass, with no unexpected skipped or cancelled tests.
 | Storage/store | Autosave, selection, preferences, migration behavior, memory/IndexedDB replacement and rollback. |
 | Markdown/editor | Sanitization, formatting toggles, autocomplete, Tab/Shift+Tab, nested renumber, caret/input flow and Preview hit geometry. |
 | Portable Data | Strict codec validation, Merge policies, Restore safety, authoritative re-planning, barriers, Save As/cancel/error and URL lifecycle. |
+| Reminders | Alarm reconciliation, stale cleanup, one-shot completion, overdue delivery without repeats, permissions and notification navigation. |
 | Platform/UI | Space/theme synchronization, i18n, permission allowlist, calendar/focus contracts, responsive CSS and real-page DOM wiring. |
 
 CSS/layout tests assert contracts, not rendered pixels. Geometry helpers use

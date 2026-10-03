@@ -19,7 +19,7 @@ import type { Note, NoteFormat } from "../notes/model";
 import { applyNoteChange, createNote } from "../notes/model";
 import { PRIMARY_MESSAGE_KEY, primaryMessage, enrichMessageReference, validatePrimaryRelations, type MessageReference } from "../messages/locator";
 import type { NotesRepository } from "../storage/repository";
-import type { ColorFilter, IndexedNote, NotesFilter, SortKey } from "../notes/query";
+import type { ColorFilter, ColorFilters, IndexedNote, NotesFilter, SortKey } from "../notes/query";
 import { DEFAULT_FILTER, indexNote, indexedNotes, isSortKey, selectNotes } from "../notes/query";
 /** Autosave debounce, within the requested 300–500 ms window. */
 export const AUTOSAVE_DELAY_MS = 400;
@@ -64,6 +64,8 @@ export interface NoteStoreOptions {
    * tests and future callers can seed it.
    */
   initialFilter?: Partial<NotesFilter>;
+  /** Rebuild background alarms after persisted reminder data changes. */
+  onRemindersChanged?: () => void | Promise<void>;
 }
 
 export interface NoteStoreMutationSession {
@@ -285,7 +287,7 @@ export class NoteStore {
   }
 
   isFiltering(): boolean {
-    return this.filter.search.trim().length > 0 || this.filter.color !== "all" || this.filter.format !== "all" ||
+    return this.filter.search.trim().length > 0 || this.filter.colors.length > 0 || this.filter.favoriteOnly || this.filter.format !== "all" ||
       Boolean(this.filter.createdFrom || this.filter.createdTo);
   }
 
@@ -313,9 +315,18 @@ export class NoteStore {
     this.emit({ type: "visible" });
   }
 
-  setColorFilter(color: ColorFilter): void {
-    if (this.filter.color === color) return;
-    this.filter = { ...this.filter, color };
+  setColorFilter(colors: ColorFilter | ColorFilters): void {
+    const values = Array.isArray(colors) ? colors : colors === "all" ? [] : [colors];
+    if (this.filter.colors.length === values.length && this.filter.colors.every((value, i) => value === values[i])) return;
+    this.filter = { ...this.filter, color: values.length === 1 ? values[0] : "all", colors: [...values] };
+    this.recomputeVisible();
+    this.emit({ type: "filter" });
+    this.emit({ type: "visible" });
+  }
+
+  setFavoriteOnly(favoriteOnly: boolean): void {
+    if (this.filter.favoriteOnly === favoriteOnly) return;
+    this.filter = { ...this.filter, favoriteOnly };
     this.recomputeVisible();
     this.emit({ type: "filter" });
     this.emit({ type: "visible" });
@@ -345,6 +356,16 @@ export class NoteStore {
     this.flushPending();
     this.selectedId = id !== null && this.noteIndex.has(id) ? id : null;
     this.emit({ type: "selection" });
+  }
+
+  revealNote(id: string): boolean {
+    if (!this.noteIndex.has(id)) return false;
+    this.filter = { ...this.filter, search: "", color: "all", colors: [], favoriteOnly: false, format: "all", createdFrom: "", createdTo: "" };
+    this.recomputeVisible();
+    this.emit({ type: "filter" });
+    this.emit({ type: "visible" });
+    this.select(id);
+    return true;
   }
 
   /** Select a sensible neighbour after a removal. */
@@ -403,7 +424,7 @@ export class NoteStore {
       return { note: owner, created: current.created };
     });
     if (!this.visible.some(entry => entry.note.id === result.note.id)) {
-      this.filter = { ...this.filter, search: "", color: "all", format: "all", createdFrom: "", createdTo: "" };
+      this.filter = { ...this.filter, search: "", color: "all", colors: [], favoriteOnly: false, format: "all", createdFrom: "", createdTo: "" };
       this.recomputeVisible();
       this.emit({ type: "filter" }); this.emit({ type: "visible" });
     }
@@ -445,7 +466,8 @@ export class NoteStore {
     // user would type into an invisible note.
     if (!this.visible.some((entry) => entry.note.id === note.id)) {
       if (this.filter.search.trim().length > 0) this.filter = { ...this.filter, search: "" };
-      if (this.filter.color !== "all") this.filter = { ...this.filter, color: "all" };
+      if (this.filter.colors.length > 0 || this.filter.color !== "all") this.filter = { ...this.filter, color: "all", colors: [] };
+      if (this.filter.favoriteOnly) this.filter = { ...this.filter, favoriteOnly: false };
       if (this.filter.format !== "all") this.filter = { ...this.filter, format: "all" };
       this.filter = { ...this.filter, createdFrom: "", createdTo: "" };
       this.recomputeVisible();
@@ -476,7 +498,7 @@ export class NoteStore {
    */
   updateNote(
     id: string,
-    change: Partial<Pick<Note, "content" | "format" | "color" | "meta">>
+    change: Partial<Pick<Note, "content" | "format" | "color" | "favorite" | "pinned" | "reminder" | "meta">>
   ): Note | null {
     this.assertMutationAllowed();
     const current = this.noteIndex.get(id);
@@ -497,6 +519,44 @@ export class NoteStore {
   updateSelected(change: Partial<Pick<Note, "content" | "format" | "color">>): Note | null {
     if (this.selectedId === null) return null;
     return this.updateNote(this.selectedId, change);
+  }
+
+  toggleFavorite(id: string): Note | null {
+    const note = this.noteIndex.get(id);
+    if (!note) return null;
+    const next = this.updateNote(id, { favorite: !note.favorite });
+    this.flushPending();
+    return next;
+  }
+
+  togglePinned(id: string): Note | null {
+    const note = this.noteIndex.get(id);
+    if (!note) return null;
+    const next = this.updateNote(id, { pinned: !note.pinned });
+    this.flushPending();
+    return next;
+  }
+
+  setReminder(id: string, at: number): Note | null {
+    if (!Number.isSafeInteger(at) || at < 0) throw new RangeError("Invalid reminder timestamp.");
+    const next = this.updateNote(id, { reminder: { at } });
+    this.flushPending();
+    return next;
+  }
+
+  removeReminder(id: string): Note | null {
+    const next = this.updateNote(id, { reminder: null });
+    this.flushPending();
+    return next;
+  }
+
+  applyReminderCompleted(id: string, expectedAt: number, firedAt: number): void {
+    const current = this.noteIndex.get(id);
+    if (!current || current.reminder?.at !== expectedAt) return;
+    const next = applyNoteChange(current, { reminder: null }, firedAt);
+    this.replaceNote(next);
+    this.dirty.set(id, next);
+    this.flushPending();
   }
 
   /** Replace a note in all derived structures, keeping sort/filter consistent. */
@@ -569,6 +629,7 @@ export class NoteStore {
     this.setSaveStatus("saving");
     try {
       await this.repository.update(pending);
+      void this.options.onRemindersChanged?.();
       // Only report "saved" when nothing newer is queued.
       if (this.dirty.size === 0) this.setSaveStatus("saved");
     } catch (error) {
@@ -643,7 +704,8 @@ export class NoteStore {
         deletes.map(async (id) => {
           try {
             await this.repository.delete(id);
-            this.pendingDeletes.delete(id);
+      this.pendingDeletes.delete(id);
+      void this.options.onRemindersChanged?.();
           } catch (error) {
             this.reportError(error, "delete");
             throw error;
@@ -661,6 +723,7 @@ export class NoteStore {
     validatePrimaryRelations(notes);
     const replacement = notes.map((note) => structuredClone(note));
     await this.repository.replaceAll(replacement);
+    void this.options.onRemindersChanged?.();
     this.autosave.cancel();
     this.dirty.clear();
     this.pendingDeletes.clear();

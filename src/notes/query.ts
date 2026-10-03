@@ -14,7 +14,10 @@
 
 import type { Note, NoteColor, NoteFormat } from "./model";
 
-export type ColorFilter = NoteColor | "all" | "none";
+export type ColorFilterValue = NoteColor | "none";
+/** Historical single-value UI representation, kept for stored preference compatibility. */
+export type ColorFilter = ColorFilterValue | "all";
+export type ColorFilters = readonly ColorFilterValue[];
 
 export type SortField = "createdAt" | "updatedAt";
 export type SortDirection = "asc" | "desc";
@@ -55,19 +58,26 @@ export function isSortKey(value: unknown): value is SortKey {
   return typeof value === "string" && (SORT_KEYS as readonly string[]).includes(value);
 }
 
-export function isColorFilter(value: unknown): value is ColorFilter {
-  return (
-    value === "all" ||
-    value === "none" ||
-    (typeof value === "string" &&
-      ["red", "orange", "yellow", "green", "blue", "purple"].includes(value))
+export function isColorFilterValue(value: unknown): value is ColorFilterValue {
+  return value === "none" || (
+    typeof value === "string" && ["red", "orange", "yellow", "green", "blue", "purple"].includes(value)
   );
+}
+
+export function isColorFilters(value: unknown): value is ColorFilters {
+  return Array.isArray(value) && value.every(isColorFilterValue) && new Set(value).size === value.length;
+}
+
+export function isColorFilter(value: unknown): value is ColorFilter {
+  return value === "all" || isColorFilterValue(value);
 }
 
 export interface NotesFilter {
   /** Raw user input. Matching is case-insensitive substring on the whole content. */
   search: string;
   color: ColorFilter;
+  colors: ColorFilters;
+  favoriteOnly: boolean;
   format: NoteFormat | "all";
   sort: SortKey;
   createdFrom?: string;
@@ -77,6 +87,8 @@ export interface NotesFilter {
 export const DEFAULT_FILTER: NotesFilter = {
   search: "",
   color: "all",
+  colors: [],
+  favoriteOnly: false,
   format: "all",
   sort: DEFAULT_SORT_KEY,
   createdFrom: "",
@@ -123,10 +135,9 @@ export function indexNote(note: Note): IndexedNote {
   return { note, searchText: note.content.toLowerCase() };
 }
 
-function matchesColor(note: Note, filter: ColorFilter): boolean {
-  if (filter === "all") return true;
-  if (filter === "none") return note.color === null;
-  return note.color === filter;
+function matchesColor(note: Note, filter: ColorFilters): boolean {
+  if (filter.length === 0) return true;
+  return filter.some((value) => value === "none" ? note.color === null : note.color === value);
 }
 
 /** Case-insensitive substring match against the whole note content. */
@@ -141,22 +152,26 @@ export function matchesSearch(searchText: string, query: string): boolean {
  */
 export function filterNotes(
   notes: readonly IndexedNote[],
-  filter: Pick<NotesFilter, "search" | "color" | "format" | "createdFrom" | "createdTo">
+  filter: Pick<NotesFilter, "search" | "color" | "format" | "createdFrom" | "createdTo"> &
+    Partial<Pick<NotesFilter, "colors" | "favoriteOnly">>
 ): IndexedNote[] {
   const query = filter.search.trim().toLowerCase();
   const hasQuery = query.length > 0;
-  const colorFilter = filter.color;
+  const colorFilter = (filter.colors?.length ?? 0) > 0
+    ? filter.colors!
+    : filter.color === "all" ? [] : [filter.color];
   const formatFilter = filter.format;
   const filterByFormat = formatFilter !== "all";
-  const filterByColor = colorFilter !== "all";
+  const filterByColor = colorFilter.length > 0;
   const range = createdDateRange(filter.createdFrom, filter.createdTo);
   const filterByDate = range.valid && (Number.isFinite(range.start) || Number.isFinite(range.end));
 
-  if (!hasQuery && !filterByColor && !filterByFormat && !filterByDate) return [...notes];
+  if (!hasQuery && !filterByColor && !filter.favoriteOnly && !filterByFormat && !filterByDate) return [...notes];
 
   const result: IndexedNote[] = [];
   for (const entry of notes) {
     if (filterByDate && (entry.note.createdAt < range.start || entry.note.createdAt >= range.end)) continue;
+    if (filter.favoriteOnly && !entry.note.favorite) continue;
     if (filterByColor && !matchesColor(entry.note, colorFilter)) continue;
     if (filterByFormat && entry.note.format !== formatFilter) continue;
     if (hasQuery && !matchesSearch(entry.searchText, query)) continue;
@@ -176,6 +191,7 @@ export function sortNotes(notes: readonly IndexedNote[], sort: SortKey): Indexed
   const factor = direction === "asc" ? 1 : -1;
 
   return [...notes].sort((a, b) => {
+    if (a.note.pinned !== b.note.pinned) return a.note.pinned ? -1 : 1;
     const left = a.note[field];
     const right = b.note[field];
     if (left !== right) return (left - right) * factor;

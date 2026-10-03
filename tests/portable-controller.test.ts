@@ -83,6 +83,8 @@ describe("portable import controller: authoritative confirmation", () => {
       createdFrom: "",
       createdTo: "",
       color: "blue",
+      colors: ["blue"],
+      favoriteOnly: false,
       format: "all",
       sort: "updated-asc",
     });

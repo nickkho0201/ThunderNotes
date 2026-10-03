@@ -36,6 +36,10 @@ export function portableNotesEqual(left: PortableNoteV1, right: PortableNoteV1):
     left.updatedAt === right.updatedAt &&
     left.revision === right.revision &&
     left.schemaVersion === right.schemaVersion &&
+    (left.favorite ?? false) === (right.favorite ?? false) &&
+    (left.pinned ?? false) === (right.pinned ?? false) &&
+    (left.reminder?.at ?? null) === (right.reminder?.at ?? null) &&
+    (left.reminder?.firedAt ?? null) === (right.reminder?.firedAt ?? null) &&
     (left.meta === undefined
       ? right.meta === undefined
       : right.meta !== undefined && jsonEqual(left.meta, right.meta))

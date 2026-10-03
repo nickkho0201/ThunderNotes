@@ -6,7 +6,7 @@
  */
 
 import { createNote } from "../src/notes/model.ts";
-import type { Note, NoteColor, NoteFormat } from "../src/notes/model.ts";
+import type { Note, NoteColor, NoteFormat, NoteReminder } from "../src/notes/model.ts";
 
 export interface NoteOverrides {
   id: string;
@@ -16,6 +16,9 @@ export interface NoteOverrides {
   createdAt?: number;
   updatedAt?: number;
   revision?: number;
+  favorite?: boolean;
+  pinned?: boolean;
+  reminder?: NoteReminder | null;
 }
 
 /** Build a deterministic note. */
@@ -31,6 +34,9 @@ export function note(overrides: NoteOverrides): Note {
     createdAt,
     updatedAt,
     revision: overrides.revision ?? 1,
+    favorite: overrides.favorite ?? false,
+    pinned: overrides.pinned ?? false,
+    reminder: overrides.reminder ?? null,
   };
 }
 

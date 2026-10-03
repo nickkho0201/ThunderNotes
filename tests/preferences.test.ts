@@ -26,6 +26,8 @@ describe("ui preferences: defaults", () => {
     assert.deepEqual(DEFAULT_UI_PREFERENCES, {
       sort: "created-desc",
       colorFilter: "all",
+      colorFilters: [],
+      favoriteOnly: false,
       lastSelectedId: null,
       formatFilter: "all",
     });
@@ -48,6 +50,8 @@ describe("ui preferences: normalizeUiPreferences", () => {
     const input: UiPreferences = {
       sort: "updated-asc",
       colorFilter: "blue",
+      colorFilters: ["blue"],
+      favoriteOnly: true,
       lastSelectedId: "note-1",
       formatFilter: "markdown",
     };
@@ -88,7 +92,7 @@ describe("ui preferences: normalizeUiPreferences", () => {
 
   it("always returns a complete object, never a partial one", () => {
     const result = normalizeUiPreferences({ sort: "updated-desc" });
-    assert.deepEqual(Object.keys(result).sort(), ["colorFilter", "formatFilter", "lastSelectedId", "sort"]);
+    assert.deepEqual(Object.keys(result).sort(), ["colorFilter", "colorFilters", "favoriteOnly", "formatFilter", "lastSelectedId", "sort"]);
   });
 });
 
@@ -98,12 +102,16 @@ describe("ui preferences: in-memory store", () => {
     await store.save({
       sort: "created-asc",
       colorFilter: "green",
+      colorFilters: ["green", "blue"],
+      favoriteOnly: true,
       lastSelectedId: "abc",
       formatFilter: "all",
     });
     assert.deepEqual(await store.load(), {
       sort: "created-asc",
       colorFilter: "green",
+      colorFilters: ["green", "blue"],
+      favoriteOnly: true,
       lastSelectedId: "abc",
       formatFilter: "all",
     });
@@ -192,7 +200,7 @@ describe("ui preferences: browser.storage.local store", () => {
     assert.equal(UI_PREFERENCES_KEY, "thundernotes.ui.v1");
     // The payload is preferences only — it must never contain notes.
     const stored = harness.data.get(UI_PREFERENCES_KEY) as Record<string, unknown>;
-    assert.deepEqual(Object.keys(stored).sort(), ["colorFilter", "formatFilter", "lastSelectedId", "sort"]);
+    assert.deepEqual(Object.keys(stored).sort(), ["colorFilter", "colorFilters", "favoriteOnly", "formatFilter", "lastSelectedId", "sort"]);
   });
 
   it("reads back what it wrote", async () => {
@@ -207,6 +215,8 @@ describe("ui preferences: browser.storage.local store", () => {
       assert.deepEqual(await store.load(), {
         sort: "created-asc",
         colorFilter: "orange",
+        colorFilters: ["orange"],
+        favoriteOnly: false,
         lastSelectedId: "n9",
         formatFilter: "all",
       });

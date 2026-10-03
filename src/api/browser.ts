@@ -125,6 +125,27 @@ export interface RuntimeApi {
   lastError?: { message?: string };
 }
 
+export interface Alarm { name: string; scheduledTime: number }
+export interface AlarmsApi {
+  create(name: string, alarmInfo: { when: number }): void | Promise<void>;
+  clear(name: string): Promise<boolean>;
+  get(name: string): Promise<Alarm | undefined>;
+  getAll(): Promise<Alarm[]>;
+  onAlarm: { addListener(listener: (alarm: Alarm) => void): void };
+}
+
+export interface NotificationsApi {
+  create(id: string, options: {
+    type: "basic"; title: string; message: string; iconUrl?: string; isClickable?: boolean;
+  }): Promise<string>;
+  onClicked: { addListener(listener: (notificationId: string) => void): void };
+}
+
+export interface PermissionsApi {
+  contains(permissions: { permissions: string[] }): Promise<boolean>;
+  request(permissions: { permissions: string[] }): Promise<boolean>;
+}
+
 /** The extension message-tab surface, as returned by `tabs.create`. */
 export interface TabsApi {
   onRemoved?: { addListener(listener: (tabId: number, removeInfo: { windowId: number; isWindowClosing: boolean }) => void): void };
@@ -187,6 +208,9 @@ export interface ThunderbirdBrowser {
   messages?: MessagesApi;
   messageDisplay?: MessageDisplayApi;
   messageDisplayAction?: MessageDisplayActionApi;
+  alarms?: AlarmsApi;
+  notifications?: NotificationsApi;
+  permissions?: PermissionsApi;
 }
 
 /** Narrow subset of official Thunderbird messages/messageDisplay APIs. */

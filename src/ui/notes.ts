@@ -16,12 +16,16 @@ import { synchronizeResolvedTheme } from "../theme/message";
 import { t } from "../i18n";
 import { openUiPreferencesStore } from "../storage/ui-preferences";
 import type { Note, NoteColor, NoteFormat } from "../notes/model";
-import type { ColorFilter, SortKey } from "../notes/query";
+import type { SortKey } from "../notes/query";
 import { SORT_KEYS, isSortKey } from "../notes/query";
 import { DataDialog } from "./data-dialog";
 import { bindListDelete, createDeleteRequest } from "./delete-request";
 import { bindCreatedDateFilter } from "./date-filter";
 import { bindMessageNotes } from "./message-notes";
+import { hasNotificationPermission, reconcileReminders, requestNotificationPermission } from "../reminders/client";
+import { REMINDER_OPEN_NOTE_KEY } from "../reminders/protocol";
+import { ReminderDialogController, reminderSetSuccessNotification, renderReminderTrigger } from "./reminder-dialog";
+import { InAppNotificationCenter } from "./notification-center";
 
 function requireElement<T extends HTMLElement>(id: string): T {
   const element = document.getElementById(id);
@@ -123,6 +127,7 @@ async function main(): Promise<void> {
   const searchInput = requireElement<HTMLInputElement>("tn-search");
   const searchClear = requireElement<HTMLButtonElement>("tn-search-clear");
   const colorFilterGroup = requireElement<HTMLElement>("tn-color-filter");
+  const favoriteFilterButton = requireElement<HTMLButtonElement>("tn-favorite-filter");
   const sortSelect = requireElement<HTMLSelectElement>("tn-sort");
   const newButton = requireElement<HTMLButtonElement>("tn-new");
   const dataButton = requireElement<HTMLButtonElement>("tn-data");
@@ -134,6 +139,7 @@ async function main(): Promise<void> {
   const banner = requireElement<HTMLElement>("tn-banner");
   const bannerText = requireElement<HTMLElement>("tn-banner-text");
   const bannerClose = requireElement<HTMLButtonElement>("tn-banner-close");
+  const notificationRoot = requireElement<HTMLElement>("tn-notifications");
   const editorRoot = requireElement<HTMLElement>("tn-editor");
   const editorEmpty = requireElement<HTMLElement>("tn-editor-empty");
   const textarea = requireElement<HTMLTextAreaElement>("tn-textarea");
@@ -147,6 +153,16 @@ async function main(): Promise<void> {
   const dateRoot = requireElement<HTMLElement>("tn-date-filter");
   const dateTrigger = requireElement<HTMLButtonElement>("tn-date-trigger");
   const datePopover = requireElement<HTMLElement>("tn-date-popover");
+  const reminderButton = requireElement<HTMLButtonElement>("tn-reminder");
+  const reminderDialog = requireElement<HTMLDialogElement>("tn-reminder-dialog");
+  const reminderForm = requireElement<HTMLFormElement>("tn-reminder-form");
+  const reminderDate = requireElement<HTMLInputElement>("tn-reminder-date");
+  const reminderTime = requireElement<HTMLInputElement>("tn-reminder-time");
+  const reminderSet = requireElement<HTMLButtonElement>("tn-reminder-set");
+  const reminderRemove = requireElement<HTMLButtonElement>("tn-reminder-remove");
+  const reminderToday = requireElement<HTMLButtonElement>("tn-reminder-today");
+  const reminderTomorrow = requireElement<HTMLButtonElement>("tn-reminder-tomorrow");
+  const reminderStatus = requireElement<HTMLElement>("tn-reminder-status");
 
   populateSortOptions(sortSelect);
 
@@ -174,6 +190,7 @@ async function main(): Promise<void> {
   sortSelect.value = preferences.sort;
 
   let bannerTimer: ReturnType<typeof setTimeout> | null = null;
+  const notifications = new InAppNotificationCenter(notificationRoot, { closeLabel: t("dismiss") });
 
   const showBanner = (message: string, autoHideMs = 0): void => {
     bannerText.textContent = message;
@@ -194,8 +211,11 @@ async function main(): Promise<void> {
     initialFilter: {
       sort: preferences.sort,
       color: preferences.colorFilter,
+      colors: preferences.colorFilters ?? [],
+      favoriteOnly: preferences.favoriteOnly ?? false,
       format: preferences.formatFilter,
     },
+    onRemindersChanged: reconcileReminders,
     onError: (error, context) => {
       const message = error instanceof Error ? error.message : String(error);
       const key = context === "load" ? "loadError" : context === "delete" ? "deleteError" : "saveError";
@@ -245,6 +265,8 @@ async function main(): Promise<void> {
       if (isNarrow()) showEditorPane();
       editorView.focusOpened();
     },
+    onToggleFavorite: (id) => { store.toggleFavorite(id); },
+    onTogglePinned: (id) => { store.togglePinned(id); },
   });
 
   // Row timestamps must reflect the active sort field from the very first render.
@@ -282,14 +304,20 @@ async function main(): Promise<void> {
    * out of step with the applied filter.
    */
   const syncFilterButtons = (): void => {
-    const active = store.getFilter().color;
+    const active = store.getFilter().colors;
     for (const button of colorFilterGroup.querySelectorAll<HTMLButtonElement>("[data-color]")) {
-      button.classList.toggle("is-active", button.dataset.color === active);
+      const value = button.dataset.color;
+      const selected = value === "all" ? active.length === 0 : active.includes(value as never);
+      button.classList.toggle("is-active", selected);
+      button.setAttribute("aria-pressed", String(selected));
     }
+    favoriteFilterButton.classList.toggle("is-active", store.getFilter().favoriteOnly);
+    favoriteFilterButton.setAttribute("aria-pressed", String(store.getFilter().favoriteOnly));
   };
 
   /** Last known preference values, so a save only happens on a real change. */
-  let lastSavedColorFilter = store.getFilter().color;
+  let lastSavedColorFilter = JSON.stringify(store.getFilter().colors);
+  let lastSavedFavorite = store.getFilter().favoriteOnly;
   let lastSavedSort = store.getFilter().sort;
   let lastSavedFormatFilter = store.getFilter().format;
   let lastSavedSelectedId = store.getSelectedId();
@@ -298,20 +326,23 @@ async function main(): Promise<void> {
     const filter = store.getFilter();
     const selectedId = store.getSelectedId();
     if (
-      filter.color === lastSavedColorFilter &&
+      JSON.stringify(filter.colors) === lastSavedColorFilter && filter.favoriteOnly === lastSavedFavorite &&
       filter.sort === lastSavedSort &&
       filter.format === lastSavedFormatFilter &&
       selectedId === lastSavedSelectedId
     ) {
       return;
     }
-    lastSavedColorFilter = filter.color;
+    lastSavedColorFilter = JSON.stringify(filter.colors);
+    lastSavedFavorite = filter.favoriteOnly;
     lastSavedSort = filter.sort;
     lastSavedFormatFilter = filter.format;
     lastSavedSelectedId = selectedId;
     void preferenceStore.save({
       sort: filter.sort,
-      colorFilter: filter.color,
+      colorFilter: filter.colors.length === 1 ? filter.colors[0]! : "all",
+      colorFilters: filter.colors,
+      favoriteOnly: filter.favoriteOnly,
       formatFilter: filter.format,
       // Persisted so the same note is reopened next time. A stale id is handled
       // by `store.selectInitial`.
@@ -346,6 +377,7 @@ async function main(): Promise<void> {
     editorView.render(note);
     editorEmpty.hidden = note !== null;
     renderSaveStatus();
+    renderReminderTrigger(reminderButton, note);
   };
 
   store.subscribe((event) => {
@@ -407,7 +439,34 @@ async function main(): Promise<void> {
     // The store is the only owner of the button state; `syncFilterButtons` runs on
     // the resulting `filter` event, so a rejected or widened value can never leave
     // a stale highlight behind.
-    store.setColorFilter(value as ColorFilter);
+    if (value === "all") store.setColorFilter([]);
+    else {
+      const current = [...store.getFilter().colors];
+      const index = current.indexOf(value as never);
+      if (index >= 0) current.splice(index, 1); else current.push(value as never);
+      store.setColorFilter(current);
+    }
+  });
+
+  favoriteFilterButton.addEventListener("click", () => store.setFavoriteOnly(!store.getFilter().favoriteOnly));
+
+  new ReminderDialogController({
+    elements: { dialog: reminderDialog, form: reminderForm, trigger: reminderButton, date: reminderDate, time: reminderTime,
+      set: reminderSet, remove: reminderRemove, today: reminderToday, tomorrow: reminderTomorrow, status: reminderStatus },
+    getNote: () => store.getSelectedNote(),
+    hasPermission: hasNotificationPermission,
+    requestPermission: requestNotificationPermission,
+    saveReminder: async (id, at) => {
+      store.setReminder(id, at);
+      await store.withMutationLock((session) => session.writeBarrier());
+      await reconcileReminders();
+    },
+    removeReminder: (id) => { store.removeReminder(id); },
+    logError: (message, error) => console.error(`[ThunderNotes] ${message}`, error),
+    onSaved: (at) => {
+      renderEditor();
+      notifications.notify({ type: "success", ...reminderSetSuccessNotification(at) });
+    },
   });
 
   sortSelect.addEventListener("change", () => {
@@ -506,6 +565,24 @@ async function main(): Promise<void> {
   if (language && language.length > 0) document.documentElement.lang = language;
   bindMessageNotes({ store, editor: editorView, textarea, preview, showEditor: showEditorPane,
     onMessage: message => showBanner(message, 6000) });
+  getBrowser()?.runtime.onMessage.addListener((message) => {
+    if (message === null || typeof message !== "object") return false;
+    const event = message as { type?: string; noteId?: string; at?: number; firedAt?: number };
+    if (event.type === "thundernotes:reminder-fired" && event.noteId &&
+        typeof event.at === "number" && typeof event.firedAt === "number") {
+      store.applyReminderCompleted(event.noteId, event.at, event.firedAt);
+    } else if (event.type === "thundernotes:reminder-open-note" && event.noteId && store.revealNote(event.noteId)) {
+      if (isNarrow()) showEditorPane();
+      void getBrowser()?.storage?.local.remove(REMINDER_OPEN_NOTE_KEY);
+    }
+    return false;
+  });
+  const pendingReminderNavigation = await getBrowser()?.storage?.local.get(REMINDER_OPEN_NOTE_KEY);
+  const pendingNoteId = pendingReminderNavigation?.[REMINDER_OPEN_NOTE_KEY];
+  if (typeof pendingNoteId === "string" && store.revealNote(pendingNoteId)) {
+    if (isNarrow()) showEditorPane();
+    await getBrowser()?.storage?.local.remove(REMINDER_OPEN_NOTE_KEY);
+  }
 
   // Keeps a reference so tooling can inspect state during development; it is not
   // part of the extension's public surface.
