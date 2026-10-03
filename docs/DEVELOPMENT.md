@@ -80,11 +80,11 @@ contents. Packaging the same `dist/` produces the same bytes; full build
 reproducibility also depends on the same source and resolved toolchain. Packaging
 recreates `artifacts/`, so archive previous outputs elsewhere if they are needed.
 
-The verifier checks version agreement, manifest/locales, exactly
-`["downloads", "messagesRead"]`,
-absence of host/optional/experiment permissions, asset resolution, hidden-state
-CSS, theme-icon rules, CSP, network entry points and remote assets. These are
-artifact checks, not a guarantee covering every possible runtime action.
+The verifier checks version agreement, manifest/locales, exactly the required
+`alarms`, `downloads` and `messagesRead` permissions, optional `notifications`,
+absence of host/experiment permissions, required license payloads, asset resolution,
+hidden-state CSS, theme-icon rules, CSP, network entry points and remote assets.
+These are artifact checks, not a guarantee covering every possible runtime action.
 
 The verifier checks `dist/`, not ZIP payload equality. For a release, also inspect
 the XPI manifest, compare archive entries byte-for-byte with `dist/`, record its
@@ -142,6 +142,9 @@ regressions, especially:
   navigation, repeated clicks, unlink/delete and moved/unavailable message resolution.
 - Markdown `/mail` focus, cancellation, keyboard navigation, subject escaping,
   recent/search ordering and internal Preview links, including saved-draft re-saving.
+- Favorite/Pin persistence, combined filters and pinned-first ordering.
+- Reminder permission grant/denial, delivery while open, overdue delivery after restart,
+  notification-click navigation and in-app notification cards at narrow and wide widths.
 
 QA candidates retain the published version until runtime QA is approved; name
 them distinctly from release artifacts. Preserve published artifacts outside

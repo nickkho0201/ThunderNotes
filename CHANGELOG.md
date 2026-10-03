@@ -6,23 +6,29 @@ UTC; an unpublished versioned entry records its release-preparation date.
 
 ## Unreleased
 
+## 0.4.0 — 2026-10-03
+
 ### Added
 
-- Favorite notes with an independent favorite-only filter and multi-colour OR filtering.
-- Pinned notes, ordered before regular notes while preserving the selected sort in both groups.
-- Local one-shot reminders with persisted state, restored Thunderbird alarms, optional system
-  notifications, completion cleanup, and Portable Data import/export support.
+- Favorite notes and an independent favorite-only filter.
+- Pinned notes with pinned-first ordering that preserves the selected sort in both groups.
+- Local one-shot reminders for a selected date and time.
+- Optional system notifications that open the related note when clicked.
+- A universal in-app notification center for clear non-modal feedback.
 
-### Fixed
+### Changed
 
-- Notification permission is now requested directly from the Reminder Set user gesture; denial
-  and API failures remain in the dialog with localized feedback instead of silently stalling.
-- Reminder setup now gives a stacked in-app confirmation card, accepts Enter from date/time
-  fields, uses the next five-minute local time for quick dates, and removes a delivered one-shot
-  reminder from active state without repeating it on restart.
-- Production XPI packages the ThunderNotes MIT license and complete notices for
-  the bundled `marked@15.0.12` dependency, with artifact verification that
-  rejects missing, altered or version-mismatched license payloads.
+- Independent filter categories combine with AND, while selected colours combine with OR.
+- Reminder Today and Tomorrow actions choose a predictable future time rounded to five minutes.
+- Delivered one-shot reminders leave active state and do not repeat after restart.
+- Polished Favorite, Pin and Reminder controls for consistent sizing and feedback.
+
+### Compatibility / Packaging
+
+- Portable Data preserves Favorite, Pin and Reminder metadata.
+- Existing ThunderNotes 0.3.0 notes and exports remain supported without manual migration.
+- Packaged XPI files include the ThunderNotes license and complete notices for bundled
+  `marked@15.0.12`, enforced by artifact verification.
 
 ## 0.3.0 — 2026-10-02
 

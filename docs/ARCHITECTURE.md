@@ -1,6 +1,6 @@
 # Architecture
 
-This document describes the 0.3.0 implementation. The owner has approved manual
+This document describes the 0.4.0 implementation. The owner has approved manual
 Thunderbird QA of the major message-link flows, header, picker and search behavior.
 This does not establish guarantees for every platform lifecycle or mailbox state.
 For build and contributor workflows,
@@ -240,8 +240,10 @@ compare the page's resolved theme with the selected glyph.
 English is the default locale; Russian is included. Strings use `browser.i18n`
 with bundled fallbacks, positional substitutions and UI-locale `Intl` formatting.
 `downloads` grants platform download capabilities,
-but backup tracking queries only the extension's active download ID. No host or
-optional permissions, experiments, remote assets or telemetry are introduced.
+but backup tracking queries only the extension's active download ID. `alarms`
+schedules local one-shot reminders, while optional `notifications` is requested
+only from the explicit Set reminder action. No host permissions, experiments,
+remote assets or telemetry are introduced.
 
 ## Message-linked notes and Markdown references
 

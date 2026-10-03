@@ -8,7 +8,7 @@ ThunderNotes is a local notes extension for Mozilla Thunderbird. It adds a
 dedicated Space where you can create a note and start typing, with autosave and
 no required title. It needs no account or cloud backend and has no telemetry.
 
-This source tree prepares **0.3.0**. Published builds are listed in GitHub Releases.
+This source tree prepares **0.4.0**. Published builds are listed in GitHub Releases.
 
 ## Features
 
